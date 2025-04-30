@@ -193,6 +193,10 @@ class STTVoskModelDescription(GObject.Object):
             if Path(path).parent == MODEL_DIRS[3] and self.url is not None:
                 shutil.rmtree(path)
 
+        # Reset the operation and download progress after deletion
+        self._operation = None
+        self.download_progress = STTDownloadState.STOPPED
+        self.paths = []
 
 class STTVoskLocalModelManager(GObject.Object):
     __gtype_name__="STTVoskLocalModelManager"
