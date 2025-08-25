@@ -529,6 +529,13 @@ class STTVoskOnlineModelManager(GObject.Object):
             model_desc.type=description.get("type","")
             model_desc.size=description.get("size_text","")
             model_desc.is_obsolete=bool(description.get("obsolete","") == "true")
+            # Remove models from obs0lete list
+            if model_desc.name in [
+                "vosk-model-en-us-daanzu-20200905",
+                "vosk-model-en-us-daanzu-20200905-lgraph"
+            ]:
+                LOG_MSG.debug("forcing %s to be treated as non-obsolete", model_desc.name)
+                model_desc.is_obsolete = False
 
             LOG_MSG.debug("adding online model (%s)", model_desc.name)
 
