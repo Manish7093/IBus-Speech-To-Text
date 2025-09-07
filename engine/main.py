@@ -84,7 +84,7 @@ class IMApplication(Adw.Application):
         LOG_MSG.info("startup")
 
         # Is it the right way to chain up?
-        Gio.Application.do_startup(self)
+        Adw.Application.do_startup(self)
 
     def do_command_line(self, args):
         already_running=args.get_is_remote()
