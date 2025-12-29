@@ -29,6 +29,7 @@ from gi.repository import Gtk, Adw, GLib
 from sttutils import *
 
 from sttvoskmodelmanagers import STTDownloadState
+from sttwhispermodelmanagers import STTDownloadState as WhisperDownloadState
 
 LOG_MSG=logging.getLogger()
 
@@ -70,6 +71,7 @@ class STTModelRow(Adw.ActionRow):
     def _update_progress_bar(self):
         if self._desc.download_progress >= STTDownloadState.ONGOING:
             self.progress_bar.set_fraction(self._desc.download_progress)
+            LOG_MSG.debug("Download progress: %.2f", self._desc.download_progress)
             return True
 
         if self._desc.download_progress == STTDownloadState.STOPPED:
@@ -84,7 +86,7 @@ class STTModelRow(Adw.ActionRow):
 
     def _update_spinner(self):
         if self._update_progress_bar() == False:
-            LOG_MSG.debug("download end")
+            LOG_MSG.info("Download completed for model: %s", self._desc.name)
             self._update_spinner_id=0
             self.progress_bar.set_visible(False)
             return False
