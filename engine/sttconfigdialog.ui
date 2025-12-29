@@ -2,7 +2,12 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <requires lib="adw" version="1.1"/>
-
+  <object class="GtkStringList" id="backend_list">
+    <items>
+      <item translatable="yes">Vosk</item>
+      <item translatable="yes">Whisper</item>
+    </items>
+  </object>
   <template class="STTConfigDialog" parent="AdwPreferencesWindow">
     <property name="can-navigate-back">True</property>
     <property name="title" translatable="yes">IBus STT Setup</property>
@@ -14,6 +19,18 @@
         <property name="icon-name">preferences-desktop-locale-symbolic</property>
           <child>
             <object class="AdwPreferencesGroup">
+            <child>
+              <object class="AdwComboRow" id="backend_dropdown">
+                <property name="title" translatable="yes">Recognition Backend</property>
+                <property name="subtitle" translatable="yes">Choose between Vosk and Whisper speech recognition engines</property>
+                <property name="model">backend_list</property>
+                <signal name="notify::selected" handler="backend_dropdown_selected_cb"/>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
             <child>
               <object class="AdwActionRow">
                 <property name="title" translatable="yes">Preload models</property>

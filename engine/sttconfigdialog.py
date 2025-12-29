@@ -35,6 +35,7 @@ from sttshortcutdialog import STTShortcutDialog
 
 from sttcurrentlocale import stt_current_locale
 from sttvoskmodelmanagers import stt_vosk_online_model_manager
+from sttwhispermodelmanagers import stt_whisper_online_model_manager
 
 from sttgstvosk import STTGstVosk
 
@@ -49,6 +50,7 @@ class STTConfigDialog (Adw.PreferencesWindow):
     default_locale_switch=Gtk.Template.Child()
     preload_model_switch=Gtk.Template.Child()
     active_on_start_switch=Gtk.Template.Child()
+    backend_dropdown=Gtk.Template.Child()
 
     cancel_button=Gtk.Template.Child()
 
@@ -82,6 +84,11 @@ class STTConfigDialog (Adw.PreferencesWindow):
         self._settings.bind("preload", self.preload_model_switch, "active", Gio.SettingsBindFlags.DEFAULT)
         self._settings.bind("active-on-start", self.active_on_start_switch, "active", Gio.SettingsBindFlags.DEFAULT)
 
+        # Setup backend selection
+        self._backend_changed_id = self._settings.connect("changed::backend", self._backend_changed_cb)
+        backend = self._settings.get_string("backend")
+        self.backend_dropdown.set_selected(0 if backend == "vosk" else 1)
+
         self._locales = {}
         self._values_dict={}
         self._utterances_dict={}
@@ -90,6 +97,7 @@ class STTConfigDialog (Adw.PreferencesWindow):
 
         # Make sure it is initialized before what follows
         stt_vosk_online_model_manager()
+        stt_whisper_online_model_manager()
 
         # Load current locale
         self._current_locale = stt_current_locale()
@@ -237,6 +245,26 @@ class STTConfigDialog (Adw.PreferencesWindow):
         file=dialog.get_file()
         dialog.destroy()
         self._current_locale.formatting_file_path(file.get_path())
+
+    @Gtk.Template.Callback()
+    def backend_dropdown_selected_cb(self, dropdown, param):
+        selected = dropdown.get_selected()
+        backend = "vosk" if selected == 0 else "whisper"
+        current_backend = self._settings.get_string("backend")
+
+        if backend != current_backend:
+            self._settings.set_string("backend", backend)
+            # Reload locale rows to show appropriate models
+            self._reload_locale_rows()
+
+    def _backend_changed_cb(self, settings, key):
+        # Update all locale rows when backend changes
+        self._reload_locale_rows()
+
+    def _reload_locale_rows(self):
+         for row in self._locales.values():
+             if row.check_button.get_active() == True:
+                 row.set_sensitive(True)
 
     @Gtk.Template.Callback()
     def default_locale_switched_cb(self, switch, value):
