@@ -25,6 +25,7 @@ from gi.repository import Gio
 from sttutils import *
 
 from sttgstvosk import STTGstVosk
+from sttgstwhisper import STTGstWhisper
 
 LOG_MSG=logging.getLogger()
 
@@ -45,7 +46,14 @@ class STTGstFactory(GObject.GObject):
         engine=None if self._current_engine is None else self._current_engine()
         if engine is None:
             LOG_MSG.debug("new engine")
-            engine=STTGstVosk()
+            # Check backend setting
+            backend = self.__settings.get_string("backend")
+            if backend == "whisper":
+                LOG_MSG.info("Using Whisper backend")
+                engine=STTGstWhisper()
+            else:
+                LOG_MSG.info("Using Vosk backend")
+                engine=STTGstVosk()
             self._current_engine=weakref.ref(engine)
         else:
             engine.hold()

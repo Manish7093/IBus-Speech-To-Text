@@ -4,12 +4,14 @@ stt_sources = [
     'sttenginefactory.py',
     'sttengine.py',
     'sttgstvosk.py',
+    'sttgstwhisper.py',
     'sttgstfactory.py',
     'sttgstbase.py',
     'sttsegmentprocess.py',
     'sttconfigdialog.py',
     'sttlocalerow.py',
     'sttvoskmodel.py',
+    'sttwhispermodel.py',
     'sttcurrentlocale.py',
     'sttutterancetree.py',
     'sttshortcutrow.py',
@@ -17,6 +19,7 @@ stt_sources = [
     'sttutterancerow.py',
     'sttmodelchooserdialog.py',
     'sttvoskmodelmanagers.py',
+    'sttwhispermodelmanagers.py',
     'sttwordstodigits.py',
     'sttmodelrow.py'
     ]

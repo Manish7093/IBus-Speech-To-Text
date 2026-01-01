@@ -41,5 +41,15 @@
       <default>'None'</default>
       <description>A JSON formatted string that is used to associate locales with a formatting file (used for automatic formatting of output). It is a custom path or nothing for defaut path.</description>
     </key>
+    <key type="s" name="backend">
+      <summary>Speech recognition backend</summary>
+      <default>'vosk'</default>
+      <description>Choose the speech recognition backend: 'vosk' or 'whisper'</description>
+    </key>
+    <key type="s" name="whisper-models">
+      <summary>Paths to Whisper models</summary>
+      <default>'None'</default>
+      <description>A JSON formatted string that is used to associate locales with their Whisper models. It can be the name of a model if it is in default monitored paths or a custom path.</description>
+    </key>
   </schema>
 </schemalist>

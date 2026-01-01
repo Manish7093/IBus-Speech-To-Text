@@ -27,13 +27,15 @@ import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
-from gi.repository import Gtk, Adw
+from gi.repository import Gtk, Adw, Gio
 
 from sttutils import *
 
 from sttvoskmodel import STTVoskModel
+from sttwhispermodel import STTWhisperModel
 from sttmodelchooserdialog import STTModelChooserDialog
 from sttvoskmodelmanagers import stt_vosk_online_model_manager
+from sttwhispermodelmanagers import stt_whisper_online_model_manager
 
 
 LOG_MSG=logging.getLogger()
@@ -67,12 +69,19 @@ class STTLocaleRow(Adw.ActionRow):
 
         self._update_checked()
         self._current_locale.connect("changed", self._locale_changed)
+        # Get current backend from settings
+        self._settings = Gio.Settings.new("org.freedesktop.ibus.engine.stt")
+        self._backend_changed_id = self._settings.connect("changed::backend", self._backend_changed_cb)
+        # Initialize model based on current backend
+        self._init_model()
 
-        self._model = STTVoskModel(locale_str=self._locale)
+    def _init_model(self):
+        backend = self._settings.get_string("backend")
+        self._model = STTWhisperModel(locale_str=self._locale) if backend == "whisper" else STTVoskModel(locale_str=self._locale)
+
         self._model.connect("changed", self._model_changed)
         self.update_description()
 
-        self.check_button.set_group(radio_group)
 
     @property
     def locale(self):
@@ -95,6 +104,13 @@ class STTLocaleRow(Adw.ActionRow):
     def _locale_changed(self, current_locale):
         self._update_checked()
 
+    def _backend_changed_cb(self, settings, key):
+        # Reinitialize model when backend changes
+        if hasattr(self, '_model') and self._model is not None:
+            self._model.disconnect_by_func(self._model_changed)
+        self._init_model()
+        self.update_description()
+
     def manage_model(self):
         window=STTModelChooserDialog(model=self._model)
         window.set_transient_for(self.get_root())
@@ -111,10 +127,16 @@ class STTLocaleRow(Adw.ActionRow):
 
         model_name=self._model.get_name()
         if model_name in [None, ""]:
-            self.set_subtitle(_("Custom model installed manually in a non-standard directory"))
+            model_path = self._model.get_path()
+            if model_path and model_path != "":
+                self.set_subtitle(_("Custom model: %s") % model_path)
+            else:
+                self.set_subtitle(_("Custom model installed manually in a non-standard directory"))
             return
 
-        model=stt_vosk_online_model_manager().get_model_description(model_name)
+        backend = self._settings.get_string("backend")
+        manager = stt_whisper_online_model_manager() if backend == "whisper" else stt_vosk_online_model_manager()
+        model = manager.get_model_description(model_name)
         if model is None:
             size=_("unknown size")
         else:
