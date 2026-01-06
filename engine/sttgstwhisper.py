@@ -116,10 +116,10 @@ class STTGstWhisper(STTGstBase):
                 lang_code = self._current_locale.locale[:2]
             
             if lang_code and lang_code != 'multilingual':
-                self._whisper = Model(model_path, language=lang_code, 
+                self._whisper = Model(model_path, language=lang_code, n_threads=2,
                                      print_realtime=False, print_progress=False)
             else:
-                self._whisper = Model(model_path, 
+                self._whisper = Model(model_path, n_threads=2,
                                      print_realtime=False, print_progress=False)
 
             LOG_MSG.info("Whisper model loaded successfully")
