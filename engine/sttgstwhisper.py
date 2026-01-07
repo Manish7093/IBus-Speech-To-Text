@@ -11,6 +11,7 @@ from sttcurrentlocale import stt_current_locale
 from sttwhispermodel import STTWhisperModel
 
 LOG_MSG = logging.getLogger()
+SPECIAL_PATTERN = re.compile(r'^(?:\[[^\]]+\]|\([^)]+\))$',re.IGNORECASE)
 
 try:
     from pywhispercpp.model import Model
@@ -245,12 +246,17 @@ class STTGstWhisper(STTGstBase):
                 
                 text_parts = []
                 for segment in segments:
-                    if hasattr(segment, 'text'):
-                        segment_text = segment.text.strip()
-                        if segment_text:
-                            text_parts.append(segment_text)
-                            LOG_MSG.debug("Segment text: '%s'", segment_text)
-                
+                    if not hasattr(segment, 'text'):
+                        continue
+
+                    segment_text = segment.text.strip()
+                    if SPECIAL_PATTERN.match(segment_text):
+                        continue
+
+                    if segment_text:
+                        text_parts.append(segment_text)
+                        LOG_MSG.debug("Segment text: '%s'", segment_text)
+
                 text = ' '.join(text_parts).strip()
 
                 if text:
