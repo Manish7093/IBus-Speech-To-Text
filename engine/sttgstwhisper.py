@@ -2,6 +2,7 @@ import logging
 import threading
 import queue
 import numpy as np
+import re
 
 from pathlib import Path
 from gi.repository import Gst, GLib
