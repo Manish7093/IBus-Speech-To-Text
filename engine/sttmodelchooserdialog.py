@@ -29,7 +29,9 @@ from gi.repository import Gtk, Gio
 from sttmodelrow import STTModelRow
 from sttvoskmodelmanagers import stt_vosk_online_model_manager
 from sttwhispermodelmanagers import stt_whisper_online_model_manager
+from sttonnxasrmodelmanagers import stt_onnxasr_online_model_manager
 from sttwhispermodel import STTWhisperModel
+from sttonnxasrmodel import STTOnnxAsrModel
 
 LOG_MSG=logging.getLogger()
 
@@ -59,13 +61,19 @@ class STTModelChooserDialog(Gtk.Dialog):
         self._model=model
 
         self._is_whisper = isinstance(model, STTWhisperModel)
-        self._manager = stt_whisper_online_model_manager() if self._is_whisper else stt_vosk_online_model_manager()
+        self._is_onnxasr = isinstance(model, STTOnnxAsrModel)
+        if self._is_whisper:
+            self._manager = stt_whisper_online_model_manager()
+        elif self._is_onnxasr:
+            self._manager = stt_onnxasr_online_model_manager()
+        else:
+            self._manager = stt_vosk_online_model_manager()
 
         locale_str=model.get_locale()
         full_list=[]
 
-        # For Whisper, use deduplication to avoid showing multilingual models twice
-        if self._is_whisper:
+        # For Whisper/onnx-asr, use deduplication to avoid showing multilingual models twice
+        if self._is_whisper or self._is_onnxasr:
             seen_models = set()
             models_to_check = [locale_str]
             if len(locale_str) > 2:
@@ -92,7 +100,12 @@ class STTModelChooserDialog(Gtk.Dialog):
         self._removed_id = self._manager.connect("removed", self._model_path_removed_cb)
 
         # Update dialog title based on backend
-        backend_name = "Whisper" if self._is_whisper else "Vosk"
+        if self._is_whisper:
+            backend_name = "Whisper"
+        elif self._is_onnxasr:
+            backend_name = "onnx-asr"
+        else:
+            backend_name = "Vosk"
         self.set_title(_("Manage %s Recognition Models") % backend_name)
 
     def _add_row(self, model_desc):
@@ -144,6 +157,33 @@ class STTModelChooserDialog(Gtk.Dialog):
     @Gtk.Template.Callback()
     def new_model_button_clicked_cb(self, button):
         root_widget=self.get_root()
+
+        if self._is_onnxasr:
+            dialog = Gtk.Dialog(transient_for=root_widget, modal=True,
+                                title=_("Add HuggingFace Model"))
+            dialog.add_buttons(_("Cancel"), Gtk.ResponseType.CANCEL,
+                               _("Add"), Gtk.ResponseType.ACCEPT)
+
+            label = Gtk.Label(label=_("Enter HuggingFace repo ID (e.g. owner/model-name):"))
+            dialog.get_content_area().append(label)
+
+            entry = Gtk.Entry()
+            entry.set_placeholder_text("owner/model-name")
+            dialog.get_content_area().append(entry)
+
+            def on_response(dialog, response):
+                if response != Gtk.ResponseType.ACCEPT:
+                    dialog.destroy()
+                    return
+                repo_id = entry.get_text().strip()
+                dialog.destroy()
+                if repo_id:
+                    self._model.set_name(repo_id)
+
+            dialog.connect("response", on_response)
+            dialog.present()
+            return
+
         # For Whisper, allow selecting files; for Vosk, allow selecting folders
         if self._is_whisper:
             action = Gtk.FileChooserAction.OPEN

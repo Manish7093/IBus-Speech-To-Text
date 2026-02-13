@@ -44,12 +44,17 @@
     <key type="s" name="backend">
       <summary>Speech recognition backend</summary>
       <default>'vosk'</default>
-      <description>Choose the speech recognition backend: 'vosk' or 'whisper'</description>
+      <description>Choose the speech recognition backend: 'vosk', 'whisper', or 'onnxasr'</description>
     </key>
     <key type="s" name="whisper-models">
       <summary>Paths to Whisper models</summary>
       <default>'None'</default>
       <description>A JSON formatted string that is used to associate locales with their Whisper models. It can be the name of a model if it is in default monitored paths or a custom path.</description>
+    </key>
+    <key type="s" name="onnxasr-models">
+      <summary>onnx-asr model names</summary>
+      <default>'None'</default>
+      <description>A JSON formatted string that is used to associate locales with their onnx-asr models. It can be the name of a pre-configured model or a HuggingFace repository ID.</description>
     </key>
   </schema>
 </schemalist>

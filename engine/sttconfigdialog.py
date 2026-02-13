@@ -36,12 +36,15 @@ from sttshortcutdialog import STTShortcutDialog
 from sttcurrentlocale import stt_current_locale
 from sttvoskmodelmanagers import stt_vosk_online_model_manager
 from sttwhispermodelmanagers import stt_whisper_online_model_manager
+from sttonnxasrmodelmanagers import stt_onnxasr_online_model_manager
 from sttvoskmodel import STTVoskModel
 from sttwhispermodel import STTWhisperModel
+from sttonnxasrmodel import STTOnnxAsrModel
 from sttmodelchooserdialog import STTModelChooserDialog
 
 from sttgstvosk import STTGstVosk
 from sttgstwhisper import STTGstWhisper
+from sttgstonnxasr import STTGstOnnxAsr
 
 LOG_MSG=logging.getLogger()
 
@@ -55,6 +58,7 @@ class STTConfigDialog (Adw.Window):
 
     vosk_check    = Gtk.Template.Child()
     whisper_check = Gtk.Template.Child()
+    onnxasr_check = Gtk.Template.Child()
 
     tab_stack    = Gtk.Template.Child()
     tab_switcher = Gtk.Template.Child()
@@ -104,6 +108,7 @@ class STTConfigDialog (Adw.Window):
 
         stt_vosk_online_model_manager()
         stt_whisper_online_model_manager()
+        stt_onnxasr_online_model_manager()
 
         # Load current locale
         self._current_locale = stt_current_locale()
@@ -115,6 +120,8 @@ class STTConfigDialog (Adw.Window):
         self._suppress_engine_cb = True
         if backend == "whisper":
             self.whisper_check.set_active(True)
+        elif backend == "onnxasr":
+            self.onnxasr_check.set_active(True)
         else:
             self.vosk_check.set_active(True)
         self._suppress_engine_cb = False
@@ -169,6 +176,8 @@ class STTConfigDialog (Adw.Window):
         backend = self._settings.get_string("backend")
         if backend == "whisper":
             self._engine = STTGstWhisper(current_locale=self._current_locale)
+        elif backend == "onnxasr":
+            self._engine = STTGstOnnxAsr(current_locale=self._current_locale)
         else:
             self._engine = STTGstVosk(current_locale=self._current_locale)
 
@@ -236,6 +245,8 @@ class STTConfigDialog (Adw.Window):
 
         if backend == "whisper":
             self._model = STTWhisperModel(locale_str=locale_str)
+        elif backend == "onnxasr":
+            self._model = STTOnnxAsrModel(locale_str=locale_str)
         else:
             self._model = STTVoskModel(locale_str=locale_str)
 
@@ -262,13 +273,17 @@ class STTConfigDialog (Adw.Window):
             return
 
         backend = self._settings.get_string("backend")
-        manager = (stt_whisper_online_model_manager() if backend == "whisper"
-                   else stt_vosk_online_model_manager())
+        if backend == "whisper":
+            manager = stt_whisper_online_model_manager()
+        elif backend == "onnxasr":
+            manager = stt_onnxasr_online_model_manager()
+        else:
+            manager = stt_vosk_online_model_manager()
         desc = manager.get_model_description(model_name)
 
         self.model_info_row.set_title(model_name)
 
-        if backend == "whisper":
+        if backend in ("whisper", "onnxasr"):
             if desc is None:
                 self.model_info_row.set_subtitle(_("Unknown model"))
             else:
@@ -325,7 +340,12 @@ class STTConfigDialog (Adw.Window):
         if getattr(self, '_suppress_engine_cb', False):
             return
 
-        backend = "vosk" if button == self.vosk_check else "whisper"
+        if button == self.vosk_check:
+            backend = "vosk"
+        elif button == self.whisper_check:
+            backend = "whisper"
+        else:
+            backend = "onnxasr"
         current = self._settings.get_string("backend")
         if backend == current:
             return
