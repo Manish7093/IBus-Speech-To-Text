@@ -1,4 +1,4 @@
-{
+ichen{
     "description" : {
         "name" : "Deutsch (Deutschland)",
         "locale" : "de_DE",
@@ -29,14 +29,13 @@
             "sechstens" : "6.",
             "siebtens" : "7.",
             "achtens" : "8.",
-            "neuntens" : "9.",
-            "null" : "0"
+            "neuntens" : "9."
          },
          "comment": ""
     },
     "custom" : [{
         "value" : "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nescio quo modo praetervolavit oratio. Illa argumenta propria videamus, cur omnia sint paria peccata. Negat esse eam, inquit, propter se expetendam. Duo Reges: constructio interrete. His similes sunt omnes, qui virtuti student levantur vitiis, levantur erroribus, nisi forte censes Ti. Atque his de rebus et splendida est eorum et illustris oratio. Quod idem cum vestri faciant, non satis magnam tribuunt inventoribus gratiam. Longum est enim ad omnia respondere, quae a te dicta sunt. Haec quo modo conveniant, non sane intellego. Ab his oratores, ab his imperatores ac rerum publicarum principes extiterunt.\n\nQuem si tenueris, non modo meum Ciceronem, sed etiam me ipsum abducas licebit. Tubulum fuisse, qua illum, cuius is condemnatus est rogatione, P. Negat esse eam, inquit, propter se expetendam. Quid dubitas igitur mutare principia naturae? Respondent extrema primis, media utrisque, omnia omnibus. Nec vero sum nescius esse utilitatem in historia, non modo voluptatem. Quid me istud rogas? Causa autem fuit huc veniendi ut quosdam hinc libros promerem.\n\nApparet statim, quae sint officia, quae actiones. Hoc etsi multimodis reprehendi potest, tamen accipio, quod dant. Quasi ego id curem, quid ille aiat aut neget. Quarum ambarum rerum cum medicinam pollicetur, luxuriae licentiam pollicetur. Itaque sensibus rationem adiunxit et ratione effecta sensus non reliquit. Quid ergo aliud intellegetur nisi uti ne quae pars naturae neglegatur? Negare non possum. Sed quot homines, tot sententiae;",
-        "utterances" : ["Beispieltext","beispieltext"],
+        "utterances" : ["Lorem ipsum", "lorem ipsum"],
         "description" : "Beispieltext"
     }, {
         "shortcut": "Control+v",
@@ -113,7 +112,7 @@
         }],
     "punctuation" : [{
         "value" : "@",
-        "utterances" : ["ät","et","at", "klammeraffe", "affenschwanz"]
+        "utterances" : ["ät","at", "klammeraffe", "affenschwanz"]
         }, {
         "value" : "\t",
         "utterances" : ["tabulator","tab"],
@@ -123,7 +122,7 @@
         "utterances" : "komma"
         }, {
         "value" : "…",
-        "utterances" : ["auslassungspunkte", "auslassungs punkte", "dreipunkt", "ellipse", "drei punkte"]
+        "utterances" : ["auslassungspunkte", "auslassungs punkte", "dreipunkt", "drei punkte"]
         }, {
         "value" : ".",
         "utterances" : ["punkt", "satzende"]
@@ -205,7 +204,7 @@
         "utterances" : ["doppelkreuz", "raute", "lattenzaun", "hashzeichen", "hash zeichen"]
         }, {
         "value" : "\/",
-        "utterances" : ["Schrägstirch", "schrägstrich"]
+        "utterances" : ["Schrägstrich", "schrägstrich"]
         }, {
         "value" : "*",
         "utterances" : ["sternchen", "asterisk"]
@@ -214,7 +213,7 @@
         "utterances" : ["paragraph", "paragraf"]
         }, {
         "value" : "%",
-        "utterances" : ["prozent", "prozentzeichen"]
+        "utterances" : ["prozentzeichen"]
         }, {
         "value" : "&",
         "utterances" : ["kaufmännisches und", "ampersand", "et zeichen"]
@@ -223,6 +222,18 @@
         "utterances" : ["Tilde", "tilde", "in etwa gleich zu"]
         }, {
         "value" : "\\",
-        "utterances" : ["backslash", "rückschrägstrich", "rück schrägstrich", "umgekehrter schrägstrich", "linksseitiger schrägstrich"] 
+        "utterances" : ["backslash", "rückschrägstrich", "rück schrägstrich", "umgekehrter schrägstrich", "linksseitiger schrägstrich"]
+        }, {
+        "value" : "€",
+        "utterances" : ["euro zeichen", "währungssymbol", "währung symbol"]
+        }, {
+        "value" : "²",
+        "utterances" : ["quadrat", "zum quadrat"]
+        }, {
+        "value" : "<",
+        "utterances" : ["kleiner als zeichen", "kleiner zeichen"]
+        }, {
+        "value" : ">",
+        "utterances" : ["grösser als zeichen", "grösser zeichen", "größer als zeichen", "größer zeichen"]
     }]
 }
