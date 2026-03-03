@@ -25,19 +25,34 @@ MODEL_DIRS = [
 # Hugging Face model repository
 MODEL_PRE_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/'
 WHISPER_MODELS = {
-    'tiny': 'ggml-tiny.bin',
-    'tiny.en': 'ggml-tiny.en.bin',
-    'base': 'ggml-base.bin',
-    'base.en': 'ggml-base.en.bin',
-    'small': 'ggml-small.bin',
-    'small.en': 'ggml-small.en.bin',
-    'medium': 'ggml-medium.bin',
-    'medium.en': 'ggml-medium.en.bin',
-    'large-v1': 'ggml-large-v1.bin',
-    'large-v2': 'ggml-large-v2.bin',
-    'large-v3': 'ggml-large-v3.bin'
+    # Quantized
+    'tiny-q5_1':          'ggml-tiny-q5_1.bin',
+    'tiny.en-q5_1':       'ggml-tiny.en-q5_1.bin',
+    'base-q5_1':          'ggml-base-q5_1.bin',
+    'base.en-q5_1':       'ggml-base.en-q5_1.bin',
+    'small-q5_1':         'ggml-small-q5_1.bin',
+    'small.en-q5_1':      'ggml-small.en-q5_1.bin',
+    'medium-q5_0':        'ggml-medium-q5_0.bin',
+    'medium.en-q5_0':     'ggml-medium.en-q5_0.bin',
+    'large-v2-q5_0':      'ggml-large-v2-q5_0.bin',
+    'large-v3-q5_0':      'ggml-large-v3-q5_0.bin',
+    'large-v3-turbo-q5_0':'ggml-large-v3-turbo-q5_0.bin',
+    # Full precision
+    'tiny':               'ggml-tiny.bin',
+    'tiny.en':            'ggml-tiny.en.bin',
+    'base':               'ggml-base.bin',
+    'base.en':            'ggml-base.en.bin',
+    'small':              'ggml-small.bin',
+    'small.en':           'ggml-small.en.bin',
+    'medium':             'ggml-medium.bin',
+    'medium.en':          'ggml-medium.en.bin',
+    'large-v1':           'ggml-large-v1.bin',
+    'large-v2':           'ggml-large-v2.bin',
+    'large-v3':           'ggml-large-v3.bin',
+    'large-v3-turbo':     'ggml-large-v3-turbo.bin',
 }
 
+QUANTIZATION_TYPES = {'q4_0', 'q4_1', 'q5_0', 'q5_1', 'q8_0'}
 DOWNLOADED_MODEL_SUFFIX = ".downloaded_model_tmp"
 
 def _helper_locale_normalize(locale_str):
@@ -122,8 +137,8 @@ class STTWhisperModelDescription(GObject.Object):
                     tmp_dst.unlink()
 
         self.download_progress = STTDownloadState.STOPPED
-        GLib.idle_add(self._download_finished) 
-        
+        GLib.idle_add(self._download_finished)
+
     def stop_downloading(self):
         if self._operation is not None:
             self._operation.cancel()
@@ -218,12 +233,19 @@ class STTWhisperLocalModelManager(GObject.Object):
         model_name = model_path.name
 
         if model_name.startswith("ggml-"):
-            parts = model_name.replace("ggml-", "").split(".")
-            model_type = parts[0]
+            stem = model_name.removeprefix("ggml-").removesuffix(".bin")
 
-            if ".en" in model_name:
+            quant_suffix = ""
+            for qt in QUANTIZATION_TYPES:
+                if stem.endswith("-" + qt):
+                    quant_suffix = "-" + qt
+                    stem = stem[: -len(quant_suffix)]
+                    break
+
+            model_type = stem + quant_suffix
+
+            if ".en" in stem:
                 locale_str = "en"
-                model_type += ".en"
             else:
                 locale_str = "multilingual"
         else:
@@ -430,17 +452,20 @@ class STTWhisperOnlineModelManager(GObject.Object):
 
     def _populate_with_whisper_models(self):
         model_sizes = {
-            'tiny': '75 MB',
-            'tiny.en': '75 MB',
-            'base': '142 MB',
-            'base.en': '142 MB',
-            'small': '466 MB',
-            'small.en': '466 MB',
-            'medium': '1.5 GB',
-            'medium.en': '1.5 GB',
-            'large-v1': '2.9 GB',
-            'large-v2': '2.9 GB',
-            'large-v3': '2.9 GB'
+            # Quantized
+            'tiny-q5_1': '31 MB',       'tiny.en-q5_1': '31 MB',
+            'base-q5_1': '57 MB',       'base.en-q5_1': '57 MB',
+            'small-q5_1': '181 MB',     'small.en-q5_1': '181 MB',
+            'medium-q5_0': '514 MB',    'medium.en-q5_0': '514 MB',
+            'large-v2-q5_0': '1.1 GB',  'large-v3-q5_0': '1.1 GB',
+            'large-v3-turbo-q5_0': '294 MB',
+            # Full precision
+            'tiny': '75 MB',            'tiny.en': '75 MB',
+            'base': '142 MB',           'base.en': '142 MB',
+            'small': '466 MB',          'small.en': '466 MB',
+            'medium': '1.5 GB',         'medium.en': '1.5 GB',
+            'large-v1': '2.9 GB',       'large-v2': '2.9 GB',
+            'large-v3': '2.9 GB',       'large-v3-turbo': '809 MB',
         }
 
         for model_name, filename in WHISPER_MODELS.items():
@@ -449,9 +474,9 @@ class STTWhisperOnlineModelManager(GObject.Object):
             model_desc.url = MODEL_PRE_URL + filename
             model_desc.size = model_sizes.get(model_name, 'Unknown')
 
-            if model_name.endswith('.en'):
+            if '.en' in model_name:
                 model_desc.locale = 'en'
-                model_desc.type = model_name.replace('.en', '')
+                model_desc.type = model_name
             else:
                 model_desc.locale = 'multilingual'
                 model_desc.type = model_name
