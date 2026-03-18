@@ -171,8 +171,8 @@
 
   </template>
 
-  <object class="AdwPreferencesPage" id="categorypage">
-    <property name="name">Command</property>
+  <object class="GtkBox" id="categorypage">
+    <property name="orientation">vertical</property>
     <child>
       <object class="GtkBox">
         <property name="orientation">vertical</property>
