@@ -137,6 +137,20 @@ class STTLocaleRow(Adw.ActionRow):
         backend = self._settings.get_string("backend")
         manager = stt_whisper_online_model_manager() if backend == "whisper" else stt_vosk_online_model_manager()
         model = manager.get_model_description(model_name)
+        if backend == "whisper":
+            if model is None:
+                self.set_subtitle(_("Unknown Whisper model"))
+            else:
+                model_type = (model.type or "").capitalize()
+                size       = model.size or _("unknown size")
+                if model.locale == "en":
+                    self.set_subtitle(_("%s – English only – %s") % (model_type, size))
+                elif model.locale == "multilingual":
+                    self.set_subtitle(_("%s – Multilingual – %s") % (model_type, size))
+                else:
+                    self.set_subtitle(_("%s – %s") % (model_type, size))
+            return
+
         if model is None:
             size=_("unknown size")
         else:

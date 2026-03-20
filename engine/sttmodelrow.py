@@ -30,6 +30,7 @@ from sttutils import *
 
 from sttvoskmodelmanagers import STTDownloadState
 from sttwhispermodelmanagers import STTDownloadState as WhisperDownloadState
+from sttwhispermodelmanagers import STTDownloadState as WhisperDownloadState, STTWhisperModelDescription
 
 LOG_MSG=logging.getLogger()
 
@@ -157,6 +158,26 @@ class STTModelRow(Adw.ActionRow):
 
         if self._desc.is_obsolete == True:
             description=_("This model is obsolete - %s") % size
+        elif isinstance(self._desc, STTWhisperModelDescription):
+            model_type = (self._desc.type or "").lower()
+            if model_type in ("large-v1", "large-v2", "large-v3", "large-v3-turbo"):
+                quality = _("Most accurate, slower and resource-heavy")
+            elif model_type in ("medium", "medium.en"):
+                quality = _("High accuracy, moderate speed")
+            elif model_type in ("small", "small.en"):
+                quality = _("Good balance of speed and accuracy")
+            elif model_type in ("base", "base.en"):
+                quality = _("Balanced and lightweight")
+            elif model_type in ("tiny", "tiny.en"):
+                quality = _("Fast, low accuracy")
+            elif model_type in ("tiny-q5_1", "tiny.en-q5_1"):
+                quality = _("Fastest, lowest accuracy")
+            else:
+                quality = _("Quantized Whisper model")
+
+            lang = _("English only") if (self._desc.locale == "en") else _("Multilingual")
+            description = _("%s \u2013 %s \u2013 %s") % (quality, lang, size)
+
         elif self._desc.type is not None:
             if self._desc.type.startswith("big") == True:
                 description=_("Large model that may be more accurate than smaller ones - %s") % size
