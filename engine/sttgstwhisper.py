@@ -3,6 +3,7 @@ import threading
 import queue
 import numpy as np
 import re
+import os
 
 from pathlib import Path
 from gi.repository import Gst, GLib
@@ -21,6 +22,14 @@ except ImportError:
     LOG_MSG.warning("pywhispercpp not available. Install with: pip install pywhispercpp")
     WHISPER_AVAILABLE = False
 
+WINDOW_SECONDS      = 5.0
+MIN_SAMPLES         = 1024
+SAMPLE_RATE         = 16000
+AUDIO_CTX           = 768
+TEMPERATURE_INC     = -1.0
+MAX_TOKENS          = 32
+_cpu_count = os.cpu_count() or 1
+N_THREADS           = max(4, _cpu_count // 2 )
 
 class STTGstWhisper(STTGstBase):
     __gtype_name__ = 'STTGstWhisper'
@@ -63,20 +72,16 @@ class STTGstWhisper(STTGstBase):
         self._locale_id = self._current_locale.connect("changed", self._locale_changed)
 
         self._model_id = 0
-        self._model = None
-        self._whisper = None
+        self._model    = None
+        self._whisper  = None
         self._set_model()
-
-        self._audio_buffer = []
-        self._buffer_duration = 0.0
-        self._max_buffer_duration = 6.0
-        self._min_buffer_duration = 2.0
-        self._sample_rate = 16000
-        self._processing = False
-        self._process_queue = queue.Queue()
-        self._process_thread = None
+        self._ring_buffer     = np.array([], dtype=np.float32)
+        self._ring_lock       = threading.Lock()
+        self._chunk_buffer    = []
+        self._chunk_samples   = 0
+        self._process_queue   = queue.Queue()
+        self._process_thread  = None
         self._stop_processing = False
-
         self._use_partial_results = False
 
     def __del__(self):
@@ -100,9 +105,14 @@ class STTGstWhisper(STTGstBase):
 
         self._appsink = None
         self._whisper = None
-
         LOG_MSG.info("Whisper.destroy() called")
         super().destroy()
+
+    def _build_lang_code(self):
+        if not self._current_locale or not self._current_locale.locale:
+            return None
+        code = self._current_locale.locale[:2].lower()
+        return code if code.isalpha() else None
 
     def _load_whisper_model(self, model_path):
         """Load Whisper model using pywhispercpp"""
@@ -112,21 +122,25 @@ class STTGstWhisper(STTGstBase):
 
         try:
             LOG_MSG.info("Loading Whisper model: %s", model_path)
-            
-            lang_code = None
-            if self._current_locale and self._current_locale.locale:
-                lang_code = self._current_locale.locale[:2]
-            
-            if lang_code and lang_code != 'multilingual':
-                self._whisper = Model(model_path, language=lang_code, n_threads=2,
-                                     print_realtime=False, print_progress=False)
-            else:
-                self._whisper = Model(model_path, n_threads=2,
-                                     print_realtime=False, print_progress=False)
+            lang_code = self._build_lang_code()
 
-            LOG_MSG.info("Whisper model loaded successfully")
+            kwargs = dict(
+                print_realtime=False,
+                print_progress=False,
+                single_segment=True,
+                no_context=True,
+                audio_ctx=AUDIO_CTX,
+                temperature_inc=TEMPERATURE_INC,
+                max_tokens=MAX_TOKENS,
+                n_threads=N_THREADS,
+            )
+
+            if lang_code:
+                kwargs["language"] = lang_code
+
+            self._whisper = Model(model_path, **kwargs)
             return True
-            
+
         except Exception as e:
             LOG_MSG.error("Failed to load Whisper model: %s", e)
             self._whisper = None
@@ -144,7 +158,6 @@ class STTGstWhisper(STTGstBase):
         new_model_path = self._model.get_path()
         LOG_MSG.debug("model ready %s", new_model_path)
 
-        # Load the model
         ret, state, pending = self.pipeline.get_state(0)
         if state >= Gst.State.READY:
             self.pipeline.set_state(Gst.State.READY)
@@ -161,8 +174,8 @@ class STTGstWhisper(STTGstBase):
         self._set_model_path()
 
     def _set_model(self):
-        if self._model is not None and \
-           self._model.get_locale() == self._current_locale.locale:
+        if (self._model is not None and
+                self._model.get_locale() == self._current_locale.locale):
             return
 
         if self._model_id != 0:
@@ -177,7 +190,6 @@ class STTGstWhisper(STTGstBase):
         self._set_model()
 
     def _on_new_sample(self, appsink):
-        """Callback when new audio sample arrives"""
         sample = appsink.emit("pull-sample")
         if sample is None:
             return Gst.FlowReturn.OK
@@ -190,39 +202,37 @@ class STTGstWhisper(STTGstBase):
         audio_data = np.frombuffer(map_info.data, dtype=np.int16)
         buf.unmap(map_info)
 
-        self._audio_buffer.append(audio_data)
-        self._buffer_duration += len(audio_data) / self._sample_rate
-
-        if self._buffer_duration >= self._max_buffer_duration:
-            self._process_audio_buffer()
+        self._chunk_buffer.append(audio_data)
+        self._chunk_samples += len(audio_data)
+        window_samples = int(WINDOW_SECONDS * SAMPLE_RATE)
+        if self._chunk_samples >= window_samples:
+            self._flush_chunks_to_ring()
+            self._dispatch_to_worker()
 
         return Gst.FlowReturn.OK
 
-    def _process_audio_buffer(self):
-        """Process accumulated audio buffer"""
-        if len(self._audio_buffer) == 0:
+    def _flush_chunks_to_ring(self):
+        if not self._chunk_buffer:
             return
 
-        if self._buffer_duration < self._min_buffer_duration:
-            LOG_MSG.debug("Buffer too short (%.2fs), waiting for more audio", self._buffer_duration)
-            return
+        new_samples = np.concatenate(self._chunk_buffer).astype(np.float32) / 32768.0
+        self._chunk_buffer.clear()
+        self._chunk_samples = 0
 
-        if self._whisper is None:
-            LOG_MSG.warning("Whisper model not loaded")
-            self._audio_buffer.clear()
-            self._buffer_duration = 0.0
-            return
+        max_samples = int(WINDOW_SECONDS * SAMPLE_RATE)
+        with self._ring_lock:
+            self._ring_buffer = np.concatenate([self._ring_buffer, new_samples])
+            if len(self._ring_buffer) > max_samples:
+                self._ring_buffer = self._ring_buffer[-max_samples:]
 
-        audio = np.concatenate(self._audio_buffer)
-        self._audio_buffer.clear()
-        self._buffer_duration = 0.0
+    def _dispatch_to_worker(self):
 
-        LOG_MSG.debug("Processing audio buffer: %d samples (%.2f seconds)", 
-                     len(audio), len(audio) / self._sample_rate)
+        with self._ring_lock:
+            if len(self._ring_buffer) < MIN_SAMPLES:
+                return
+            snapshot = self._ring_buffer.copy()
 
-        audio_float = audio.astype(np.float32) / 32768.0
-
-        self._process_queue.put(audio_float)
+        self._process_queue.put(snapshot)
 
         if self._process_thread is None or not self._process_thread.is_alive():
             self._process_thread = threading.Thread(target=self._process_worker, daemon=True)
@@ -276,8 +286,8 @@ class STTGstWhisper(STTGstBase):
         return False
 
     def get_final_results(self):
-        if len(self._audio_buffer) > 0:
-            self._process_audio_buffer()
+        self._flush_chunks_to_ring()
+        self._dispatch_to_worker()
         self._process_queue.join()
 
     def get_results(self):
