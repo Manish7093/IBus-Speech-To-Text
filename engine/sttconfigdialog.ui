@@ -2,322 +2,470 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <requires lib="adw" version="1.1"/>
-  <object class="GtkStringList" id="backend_list">
-    <items>
-      <item translatable="yes">Vosk</item>
-      <item translatable="yes">Whisper</item>
-    </items>
-  </object>
-  <template class="STTConfigDialog" parent="AdwPreferencesWindow">
-    <property name="can-navigate-back">True</property>
-    <property name="title" translatable="yes">IBus STT Setup</property>
-    <property name="icon-name">user-available-symbolic</property>
-    <property name="modal">False</property>
-    <child>
-      <object class="AdwPreferencesPage" id="page1">
-        <property name="title" translatable="yes">General</property>
-        <property name="icon-name">preferences-desktop-locale-symbolic</property>
-          <child>
-            <object class="AdwPreferencesGroup">
+
+  <template class="STTConfigDialog" parent="AdwWindow">
+    <property name="title" translatable="yes">Speech to text</property>
+    <property name="default-width">520</property>
+    <property name="default-height">700</property>
+    <property name="content">
+      <object class="AdwToastOverlay" id="toast_overlay">
+        <property name="child">
+          <object class="GtkStack" id="main_stack">
+            <property name="transition-type">slide-left-right</property>
+
             <child>
-              <object class="AdwComboRow" id="backend_dropdown">
-                <property name="title" translatable="yes">Recognition Backend</property>
-                <property name="subtitle" translatable="yes">Choose between Vosk and Whisper speech recognition engines</property>
-                <property name="model">backend_list</property>
-                <signal name="notify::selected" handler="backend_dropdown_selected_cb"/>
+              <object class="GtkStackPage">
+                <property name="name">main</property>
+                <property name="child">
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+
+                    <child>
+                      <object class="AdwHeaderBar" id="main_headerbar"/>
+                    </child>
+
+                    <child>
+                      <object class="GtkScrolledWindow">
+                        <property name="hscrollbar-policy">never</property>
+                        <property name="vexpand">True</property>
+                        <child>
+                          <object class="AdwClamp">
+                            <property name="maximum-size">500</property>
+                            <property name="child">
+                              <object class="GtkBox" id="content_box">
+                                <property name="orientation">vertical</property>
+                                <property name="margin-start">12</property>
+                                <property name="margin-end">12</property>
+                                <property name="margin-top">8</property>
+                                <property name="margin-bottom">16</property>
+                                <property name="spacing">12</property>
+
+                                <child>
+                                  <object class="AdwPreferencesGroup" id="engine_group">
+                                    <property name="title" translatable="yes">Speech engine</property>
+                                    <child>
+                                      <object class="AdwActionRow" id="vosk_action_row">
+                                        <property name="title">Vosk</property>
+                                        <property name="subtitle" translatable="yes">Fast, offline, voice commands</property>
+                                        <property name="activatable-widget">vosk_check</property>
+                                        <child type="prefix">
+                                          <object class="GtkCheckButton" id="vosk_check">
+                                            <property name="valign">center</property>
+                                            <signal name="toggled" handler="engine_toggled_cb"/>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="AdwActionRow" id="whisper_action_row">
+                                        <property name="title">Whisper</property>
+                                        <property name="subtitle" translatable="yes">More accurate, no voice commands</property>
+                                        <property name="activatable-widget">whisper_check</property>
+                                        <child type="prefix">
+                                          <object class="GtkCheckButton" id="whisper_check">
+                                            <property name="valign">center</property>
+                                            <property name="group">vosk_check</property>
+                                            <signal name="toggled" handler="engine_toggled_cb"/>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="GtkStackSwitcher" id="tab_switcher">
+                                    <property name="stack">tab_stack</property>
+                                    <property name="halign">center</property>
+                                  </object>
+                                </child>
+
+                                <child>
+                                  <object class="GtkStack" id="tab_stack">
+                                    <property name="transition-type">slide-left-right</property>
+                                    <property name="vhomogeneous">False</property>
+
+                                    <child>
+                                      <object class="GtkStackPage">
+                                        <property name="name">setup</property>
+                                        <property name="title" translatable="yes">Setup</property>
+                                        <property name="child">
+                                          <object class="GtkBox" id="setup_box">
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">12</property>
+
+                                            <child>
+                                              <object class="AdwPreferencesGroup" id="language_group">
+                                                <property name="title" translatable="yes">Language</property>
+                                                <child>
+                                                  <object class="AdwComboRow" id="language_dropdown">
+                                                    <property name="title" translatable="yes">Input language</property>
+                                                    <signal name="notify::selected" handler="language_selected_cb"/>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="AdwActionRow" id="system_lang_row">
+                                                    <property name="title" translatable="yes">Use system language</property>
+                                                    <property name="subtitle" translatable="yes">Automatically match your system locale</property>
+                                                    <property name="activatable-widget">system_language_switch</property>
+                                                    <child type="suffix">
+                                                      <object class="GtkSwitch" id="system_language_switch">
+                                                        <property name="valign">center</property>
+                                                        <signal name="notify::active" handler="system_language_switched_cb"/>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+
+                                            <child>
+                                              <object class="AdwPreferencesGroup" id="model_group">
+                                                <property name="title" translatable="yes">Model</property>
+                                                <child>
+                                                  <object class="AdwActionRow" id="model_info_row">
+                                                    <property name="title" translatable="yes">No model</property>
+                                                    <property name="subtitle" translatable="yes">Select a language to see available models</property>
+                                                    <property name="activatable">True</property>
+                                                    <signal name="activated" handler="change_model_clicked_cb"/>
+                                                    <child type="suffix">
+                                                      <object class="GtkButton" id="change_model_button">
+                                                        <property name="label" translatable="yes">Change</property>
+                                                        <property name="valign">center</property>
+                                                        <signal name="clicked" handler="change_model_clicked_cb"/>
+                                                        <style>
+                                                          <class name="flat"/>
+                                                        </style>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+
+                                            <child>
+                                              <object class="AdwPreferencesGroup" id="behaviour_group">
+                                                <property name="title" translatable="yes">Behaviour</property>
+                                                <child>
+                                                  <object class="AdwActionRow">
+                                                    <property name="title" translatable="yes">Listen on launch</property>
+                                                    <property name="subtitle" translatable="yes">Start recognising when STT is activated</property>
+                                                    <property name="activatable-widget">active_on_start_switch</property>
+                                                    <child type="suffix">
+                                                      <object class="GtkSwitch" id="active_on_start_switch">
+                                                        <property name="valign">center</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="AdwActionRow">
+                                                    <property name="title" translatable="yes">Keep model in memory</property>
+                                                    <property name="subtitle" translatable="yes">Faster start, uses more RAM when idle</property>
+                                                    <property name="activatable-widget">preload_model_switch</property>
+                                                    <child type="suffix">
+                                                      <object class="GtkSwitch" id="preload_model_switch">
+                                                        <property name="valign">center</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+
+                                          </object>
+                                        </property>
+                                      </object>
+                                    </child>
+
+                                    <child>
+                                      <object class="GtkStackPage">
+                                        <property name="name">voice_commands</property>
+                                        <property name="title" translatable="yes">Voice commands</property>
+                                        <property name="child">
+                                          <object class="GtkBox" id="voice_commands_box">
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">12</property>
+
+
+                                            <child>
+                                              <object class="GtkBox" id="vc_whisper_warning">
+                                                <property name="visible">False</property>
+                                                <property name="orientation">vertical</property>
+                                                <property name="spacing">12</property>
+                                                <property name="valign">center</property>
+                                                <property name="vexpand">True</property>
+                                                <property name="margin-top">40</property>
+                                                <child>
+                                                  <object class="GtkImage">
+                                                    <property name="icon-name">dialog-information-symbolic</property>
+                                                    <property name="pixel-size">48</property>
+                                                    <property name="halign">center</property>
+                                                    <style>
+                                                      <class name="dim-label"/>
+                                                    </style>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel">
+                                                    <property name="label" translatable="yes">Not available with Whisper</property>
+                                                    <property name="halign">center</property>
+                                                    <style>
+                                                      <class name="title-2"/>
+                                                    </style>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel">
+                                                    <property name="label" translatable="yes">Voice commands require the Vosk engine. Switch to Vosk in the Setup tab to use them.</property>
+                                                    <property name="halign">center</property>
+                                                    <property name="justify">center</property>
+                                                    <property name="wrap">True</property>
+                                                    <property name="max-width-chars">36</property>
+                                                    <property name="margin-start">24</property>
+                                                    <property name="margin-end">24</property>
+                                                    <style>
+                                                      <class name="dim-label"/>
+                                                    </style>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+
+                                            <child>
+                                              <object class="AdwPreferencesGroup" id="voice_commands_group">
+                                                <property name="title" translatable="yes">All voice commands</property>
+                                                <property name="header-suffix">
+                                                  <object class="GtkBox">
+                                                    <property name="spacing">4</property>
+                                                    <child>
+                                                      <object class="GtkButton" id="new_formatting_button">
+                                                        <property name="icon_name">document-open-symbolic</property>
+                                                        <property name="tooltip-text" translatable="yes">Load formatting file</property>
+                                                        <signal name="clicked" handler="new_formatting_file_button_clicked_cb"/>
+                                                        <style>
+                                                          <class name="flat"/>
+                                                        </style>
+                                                      </object>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkButton" id="new_shortcut_button">
+                                                        <property name="icon_name">list-add-symbolic</property>
+                                                        <property name="tooltip-text" translatable="yes">Add custom shortcut</property>
+                                                        <signal name="clicked" handler="new_shortcut_clicked_cb"/>
+                                                        <style>
+                                                          <class name="flat"/>
+                                                        </style>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </property>
+
+                                                <child>
+                                                  <object class="AdwActionRow" id="commands_row">
+                                                    <property name="title" translatable="yes">Commands</property>
+                                                    <property name="activatable">True</property>
+                                                    <signal name="activated" handler="commands_row_activated_cb"/>
+                                                    <child type="suffix">
+                                                      <object class="GtkImage">
+                                                        <property name="icon_name">go-next-symbolic</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="AdwActionRow" id="punctuation_row">
+                                                    <property name="title" translatable="yes">Punctuation</property>
+                                                    <property name="activatable">True</property>
+                                                    <signal name="activated" handler="punctuation_row_activated_cb"/>
+                                                    <child type="suffix">
+                                                      <object class="GtkImage">
+                                                        <property name="icon_name">go-next-symbolic</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="AdwActionRow" id="case_row">
+                                                    <property name="title" translatable="yes">Case</property>
+                                                    <property name="activatable">True</property>
+                                                    <signal name="activated" handler="case_row_activated_cb"/>
+                                                    <child type="suffix">
+                                                      <object class="GtkImage">
+                                                        <property name="icon_name">go-next-symbolic</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="AdwActionRow" id="diacritics_row">
+                                                    <property name="title" translatable="yes">Diacritics</property>
+                                                    <property name="activatable">True</property>
+                                                    <signal name="activated" handler="diacritics_row_activated_cb"/>
+                                                    <child type="suffix">
+                                                      <object class="GtkImage">
+                                                        <property name="icon_name">go-next-symbolic</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="AdwActionRow" id="custom_row">
+                                                    <property name="title" translatable="yes">Custom shortcuts</property>
+                                                    <property name="activatable">True</property>
+                                                    <signal name="activated" handler="custom_row_activated_cb"/>
+                                                    <child type="suffix">
+                                                      <object class="GtkImage">
+                                                        <property name="icon_name">go-next-symbolic</property>
+                                                      </object>
+                                                    </child>
+                                                  </object>
+                                                </child>
+
+                                              </object>
+                                            </child>
+
+                                          </object>
+                                        </property>
+                                      </object>
+                                    </child>
+
+                                  </object>
+                                </child>
+
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+
+                  </object>
+                </property>
               </object>
             </child>
+
+            <child>
+              <object class="GtkStackPage">
+                <property name="name">category</property>
+                <property name="child">
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+
+                    <child>
+                      <object class="AdwHeaderBar" id="category_headerbar">
+                        <child type="start">
+                          <object class="GtkButton" id="back_button">
+                            <property name="icon-name">go-previous-symbolic</property>
+                            <signal name="clicked" handler="back_button_clicked_cb"/>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkScrolledWindow">
+                        <property name="hscrollbar-policy">never</property>
+                        <property name="vexpand">True</property>
+                        <property name="propagate-natural-height">True</property>
+                        <child>
+                          <object class="AdwClamp">
+                            <property name="child">
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="margin-start">12</property>
+                                <property name="margin-end">12</property>
+                                <property name="margin-top">12</property>
+                                <property name="margin-bottom">12</property>
+
+                                <child>
+                                  <object class="GtkStack" id="category_stack">
+                                    <property name="transition-type">slide-left-right</property>
+                                    <property name="vhomogeneous">False</property>
+                                    <property name="hhomogeneous">False</property>
+
+                                    <child>
+                                      <object class="GtkStackPage">
+                                        <property name="name">commands</property>
+                                        <property name="child">
+                                          <object class="AdwPreferencesGroup" id="commandslistbox">
+                                            <property name="title" translatable="yes">Commands</property>
+                                          </object>
+                                        </property>
+                                      </object>
+                                    </child>
+
+                                    <child>
+                                      <object class="GtkStackPage">
+                                        <property name="name">punctuation</property>
+                                        <property name="child">
+                                          <object class="AdwPreferencesGroup" id="punctuationlistbox">
+                                            <property name="title" translatable="yes">Punctuation</property>
+                                          </object>
+                                        </property>
+                                      </object>
+                                    </child>
+
+                                    <child>
+                                      <object class="GtkStackPage">
+                                        <property name="name">case</property>
+                                        <property name="child">
+                                          <object class="AdwPreferencesGroup" id="caselistbox">
+                                            <property name="title" translatable="yes">Case</property>
+                                          </object>
+                                        </property>
+                                      </object>
+                                    </child>
+
+                                    <child>
+                                      <object class="GtkStackPage">
+                                        <property name="name">diacritics</property>
+                                        <property name="child">
+                                          <object class="AdwPreferencesGroup" id="diacriticslistbox">
+                                            <property name="title" translatable="yes">Diacritics</property>
+                                          </object>
+                                        </property>
+                                      </object>
+                                    </child>
+
+                                    <child>
+                                      <object class="GtkStackPage">
+                                        <property name="name">custom</property>
+                                        <property name="child">
+                                          <object class="AdwPreferencesGroup" id="customlistbox">
+                                            <property name="title" translatable="yes">Custom shortcuts</property>
+                                            <property name="header-suffix">
+                                              <object class="GtkButton" id="custom_page_add_button">
+                                                <property name="icon_name">list-add-symbolic</property>
+                                                <signal name="clicked" handler="new_shortcut_clicked_cb"/>
+                                                <style>
+                                                  <class name="flat"/>
+                                                </style>
+                                              </object>
+                                            </property>
+                                          </object>
+                                        </property>
+                                      </object>
+                                    </child>
+
+                                  </object>
+                                </child>
+
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+
+                  </object>
+                </property>
+              </object>
+            </child>
+
           </object>
-        </child>
-        <child>
-          <object class="AdwPreferencesGroup">
-            <child>
-              <object class="AdwActionRow">
-                <property name="title" translatable="yes">Preload models</property>
-                <property name="subtitle" translatable="yes">Starting voice recognition becomes faster but it requires more memory in between</property>
-                <property name="activatable-widget">preload_model_switch</property>
-                <child type="suffix">
-                  <object class="GtkSwitch" id="preload_model_switch">
-                    <property name="valign">center</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwActionRow">
-                <property name="title" translatable="yes">Active on start</property>
-                <property name="subtitle" translatable="yes">Start voice recognition as soon as STT is activated</property>
-                <property name="activatable-widget">active_on_start_switch</property>
-                <child type="suffix">
-                  <object class="GtkSwitch" id="active_on_start_switch">
-                    <property name="valign">center</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwActionRow">
-                <property name="title" translatable="yes">System Locale</property>
-                <property name="subtitle" translatable="yes">Always use system locale.</property>
-                <property name="activatable-widget">default_locale_switch</property>
-                <child type="suffix">
-                  <object class="GtkSwitch" id="default_locale_switch">
-                    <property name="valign">center</property>
-                    <signal name="notify::active" handler="default_locale_switched_cb"/>
-                  </object>
-                </child>
-              </object>
-            </child>
-          </object>
-        </child>
-        <child>
-          <object class="AdwPreferencesGroup" id="localelistbox">
-            <property name="title" translatable="yes">Locales</property>
-          </object> <!--localelistbox-->
-        </child>
+        </property>
       </object>
-
-    </child>
-    <child>
-      <object class="AdwPreferencesPage" id="page2">
-        <property name="title" translatable="yes">Text formatting</property>
-        <property name="icon-name">preferences-desktop-keyboard-shortcuts-symbolic</property>
-        <child>
-          <object class="AdwPreferencesGroup" id="categorylistbox">
-            <property name="title" translatable="True">All shortcuts</property>
-            <property name="header-suffix">
-              <object class="GtkButton" id="new_formatting_button">
-                <property name="icon_name">list-add-symbolic</property>
-                <style>
-                  <class name="flat" />
-                </style>
-                <signal name="clicked" handler="new_formatting_file_button_clicked_cb"/>
-              </object>
-            </property>
-            <child>
-              <object class="AdwActionRow" id="commands_row">
-                <property name="name">Command</property>
-                <property name="title" translatable="yes">Commands</property>
-                <property name="selectable">False</property>
-                <property name="activatable">True</property>
-                <signal name="activated" handler="commands_row_activated_cb"/>
-                <child>
-                  <object class="GtkImage">
-                    <property name="icon_name">go-next-symbolic</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwActionRow" id="case_row">
-                <property name="name">Case</property>
-                <property name="title" translatable="yes">Case</property>
-                <property name="selectable">False</property>
-                <property name="activatable">True</property>
-                <signal name="activated" handler="case_row_activated_cb"/>
-                <child>
-                  <object class="GtkImage">
-                    <property name="icon_name">go-next-symbolic</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwActionRow" id="punctuation_row">
-                <property name="name">Punctuation</property>
-                <property name="title" translatable="yes">Punctuation</property>
-                <property name="selectable">False</property>
-                <property name="activatable">True</property>
-                <signal name="activated" handler="punctuation_row_activated_cb"/>
-                <child>
-                  <object class="GtkImage">
-                    <property name="icon_name">go-next-symbolic</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwActionRow" id="diacritics_row">
-                <property name="name">Diacritics</property>
-                <property name="title" translatable="yes">Diacritics</property>
-                <property name="selectable">False</property>
-                <property name="activatable">True</property>
-                <signal name="activated" handler="diacritics_row_activated_cb"/>
-                <child>
-                  <object class="GtkImage">
-                    <property name="icon_name">go-next-symbolic</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwActionRow" id="custom_row">
-                <property name="name">Custom</property>
-                <property name="title" translatable="yes">Custom shortcuts</property>
-                <property name="selectable">False</property>
-                <property name="activatable">True</property>
-                <signal name="activated" handler="custom_row_activated_cb"/>
-                <child>
-                  <object class="GtkImage">
-                    <property name="icon_name">go-next-symbolic</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-          </object> <!--categorylistbox-->
-        </child>
-      </object> <!--page2-->
-    </child>
-
+    </property>
   </template>
-
-  <object class="GtkBox" id="categorypage">
-    <property name="orientation">vertical</property>
-    <child>
-      <object class="GtkBox">
-        <property name="orientation">vertical</property>
-        <child>
-          <object class="GtkHeaderBar" id="header">
-            <child type="start">
-              <object class="GtkButton" id="cancel_button">
-                <property name="icon_name">go-previous-symbolic</property>
-                <signal name="clicked" handler="cancel_button_clicked_cb"/>
-              </object>
-            </child>
-          </object>
-        </child>
-        <child>
-          <object class="GtkScrolledWindow">
-            <property name="hexpand">True</property>
-            <property name="vexpand">True</property>
-            <property name="hscrollbar_policy">never</property>
-            <property name="propagate_natural_width">True</property>
-            <property name="propagate_natural_height">True</property>
-            <child>
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
-                <child>
-                  <object class="AdwViewStack" id="category_stack">
-                    <property name="hexpand">True</property>
-                    <property name="vexpand">True</property>
-                    <property name="hhomogeneous">False</property>
-                    <property name="vhomogeneous">False</property>
-                    <child>
-                      <object class="AdwClamp" id="commandspage">
-                        <property name="child">
-                          <object class="GtkBox">
-                            <property name="orientation">vertical</property>
-                            <property name="margin-top">12</property>
-                            <property name="margin-bottom">12</property>
-                            <property name="margin-start">12</property>
-                            <property name="margin-end">12</property>
-                            <child>
-                              <object class="AdwPreferencesGroup" id="commandslistbox">
-                                <property name="title" translatable="yes">Commands</property>
-                                <property name="margin-top">12</property>
-                                <property name="margin-bottom">12</property>
-                              </object> <!--commandslistbox-->
-                            </child>
-                          </object>
-                        </property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="AdwClamp" id="casepage">
-                        <property name="child">
-                          <object class="GtkBox">
-                            <property name="orientation">vertical</property>
-                            <property name="margin-top">12</property>
-                            <property name="margin-bottom">12</property>
-                            <property name="margin-start">12</property>
-                            <property name="margin-end">12</property>
-                            <child>
-                              <object class="AdwPreferencesGroup" id="caselistbox">
-                                <property name="title" translatable="yes">Case</property>
-                                <property name="margin-top">12</property>
-                                <property name="margin-bottom">12</property>
-                              </object>  <!--caselistbox-->
-                            </child>
-                          </object>
-                        </property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="AdwClamp" id="punctuationpage">
-                        <property name="child">
-                          <object class="GtkBox">
-                            <property name="orientation">vertical</property>
-                            <property name="margin-top">12</property>
-                            <property name="margin-bottom">12</property>
-                            <property name="margin-start">12</property>
-                            <property name="margin-end">12</property>
-                            <child>
-                              <object class="AdwPreferencesGroup" id="punctuationlistbox">
-                                <property name="title" translatable="yes">Punctuation</property>
-                                <property name="margin-top">12</property>
-                                <property name="margin-bottom">12</property>
-                              </object> <!--punctuationlistbox-->
-                            </child>
-                          </object>
-                        </property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="AdwClamp" id="diacriticspage">
-                        <property name="child">
-                          <object class="GtkBox">
-                            <property name="orientation">vertical</property>
-                            <property name="margin-top">12</property>
-                            <property name="margin-bottom">12</property>
-                            <property name="margin-start">12</property>
-                            <property name="margin-end">12</property>
-                            <child>
-                              <object class="AdwPreferencesGroup" id="diacriticslistbox">
-                                <property name="title" translatable="yes">Diacritics</property>
-                                <property name="margin-top">12</property>
-                                <property name="margin-bottom">12</property>
-                              </object> <!--diacriticslistbox-->
-                            </child>
-                          </object>
-                        </property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="AdwClamp" id="custompage">
-                        <property name="child">
-                          <object class="GtkBox">
-                            <property name="orientation">vertical</property>
-                            <property name="margin-top">12</property>
-                            <property name="margin-bottom">12</property>
-                            <property name="margin-start">12</property>
-                            <property name="margin-end">12</property>
-                            <child>
-                              <object class="AdwPreferencesGroup" id="customlistbox">
-                                <property name="title" translatable="yes">Custom shortcuts</property>
-                                <property name="margin-top">12</property>
-                                <property name="margin-bottom">12</property>
-                                <property name="header-suffix">
-                                  <object class="GtkButton" id="new_shortcut_button">
-                                    <property name="icon_name">list-add-symbolic</property>
-                                    <style>
-                                      <class name="flat" />
-                                    </style>
-                                    <signal name="clicked" handler="new_shortcut_clicked_cb"/>
-                                   </object>
-                                </property>
-                              </object> <!--customlistbox-->
-                            </child>
-                          </object>
-                        </property>
-                      </object>
-                    </child>
-                  </object> <!-- category_stack-->
-                </child>
-              </object> <!-- box with no name above category_stack-->
-            </child>
-          </object> <!--scrolled window-->
-        </child>
-      </object>
-    </child>
-  </object>
 </interface>
