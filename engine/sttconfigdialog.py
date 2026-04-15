@@ -20,6 +20,7 @@ import logging
 import locale
 
 from gettext import gettext as _
+from babel import Locale, UnknownLocaleError
 
 import gi
 
@@ -29,73 +30,76 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Gio, Adw
 
 from sttutils import *
-from sttlocalerow import STTLocaleRow
 from sttshortcutrow import STTShortcutRow
 from sttshortcutdialog import STTShortcutDialog
 
 from sttcurrentlocale import stt_current_locale
 from sttvoskmodelmanagers import stt_vosk_online_model_manager
 from sttwhispermodelmanagers import stt_whisper_online_model_manager
+from sttvoskmodel import STTVoskModel
+from sttwhispermodel import STTWhisperModel
+from sttmodelchooserdialog import STTModelChooserDialog
 
 from sttgstvosk import STTGstVosk
 
 LOG_MSG=logging.getLogger()
 
+
 @Gtk.Template(resource_path="/org/freedesktop/ibus/engine/stt/config/sttconfigdialog.ui")
-class STTConfigDialog (Adw.PreferencesWindow):
+class STTConfigDialog (Adw.Window):
     __gtype_name__="STTConfigDialog"
 
-    localelistbox=Gtk.Template.Child()
+    main_stack    = Gtk.Template.Child()
+    toast_overlay = Gtk.Template.Child()
 
-    default_locale_switch=Gtk.Template.Child()
-    preload_model_switch=Gtk.Template.Child()
-    active_on_start_switch=Gtk.Template.Child()
-    backend_dropdown=Gtk.Template.Child()
+    vosk_check    = Gtk.Template.Child()
+    whisper_check = Gtk.Template.Child()
 
-    cancel_button=Gtk.Template.Child()
+    tab_stack    = Gtk.Template.Child()
+    tab_switcher = Gtk.Template.Child()
 
-    commandslistbox=Gtk.Template.Child()
-    caselistbox=Gtk.Template.Child()
-    diacriticslistbox=Gtk.Template.Child()
-    punctuationlistbox=Gtk.Template.Child()
-    customlistbox=Gtk.Template.Child()
+    language_dropdown     = Gtk.Template.Child()
+    system_language_switch = Gtk.Template.Child()
 
-    commands_row=Gtk.Template.Child()
-    case_row=Gtk.Template.Child()
-    diacritics_row=Gtk.Template.Child()
-    punctuation_row=Gtk.Template.Child()
+    model_info_row      = Gtk.Template.Child()
+    change_model_button = Gtk.Template.Child()
 
-    categorypage=Gtk.Template.Child()
-    category_stack=Gtk.Template.Child()
+    preload_model_switch   = Gtk.Template.Child()
+    active_on_start_switch = Gtk.Template.Child()
 
-    commandspage=Gtk.Template.Child()
-    casepage=Gtk.Template.Child()
-    diacriticspage=Gtk.Template.Child()
-    punctuationpage=Gtk.Template.Child()
-    custompage=Gtk.Template.Child()
+    vc_whisper_warning   = Gtk.Template.Child()
+    voice_commands_group = Gtk.Template.Child()
+
+    commands_row    = Gtk.Template.Child()
+    case_row        = Gtk.Template.Child()
+    diacritics_row  = Gtk.Template.Child()
+    punctuation_row = Gtk.Template.Child()
+    custom_row      = Gtk.Template.Child()
+
+    category_stack     = Gtk.Template.Child()
+    commandslistbox    = Gtk.Template.Child()
+    caselistbox        = Gtk.Template.Child()
+    diacriticslistbox  = Gtk.Template.Child()
+    punctuationlistbox = Gtk.Template.Child()
+    customlistbox      = Gtk.Template.Child()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._valid_formatting_file_path=False
-        self._valid_formatting_file=False
-        self._valid_override_file=False
+
+        self._valid_formatting_file_path = False
+        self._valid_formatting_file = False
+        self._valid_override_file = False
+        self._values_dict = {}
+        self._utterances_dict = {}
+        self._no_model_toast = None
+        self._unsupported_locale_toast = None
+        self._model = None
+        self._suppress_language_cb = False
 
         self._settings=Gio.Settings.new("org.freedesktop.ibus.engine.stt")
         self._settings.bind("preload", self.preload_model_switch, "active", Gio.SettingsBindFlags.DEFAULT)
         self._settings.bind("active-on-start", self.active_on_start_switch, "active", Gio.SettingsBindFlags.DEFAULT)
 
-        # Setup backend selection
-        self._backend_changed_id = self._settings.connect("changed::backend", self._backend_changed_cb)
-        backend = self._settings.get_string("backend")
-        self.backend_dropdown.set_selected(0 if backend == "vosk" else 1)
-
-        self._locales = {}
-        self._values_dict={}
-        self._utterances_dict={}
-        self._no_model_toast=None
-        self._unsupported_locale_toast=None
-
-        # Make sure it is initialized before what follows
         stt_vosk_online_model_manager()
         stt_whisper_online_model_manager()
 
@@ -105,84 +109,344 @@ class STTConfigDialog (Adw.PreferencesWindow):
         self._override_file_changed_id=self._current_locale.connect("override-file-changed", self._override_file_changed_cb)
         self._override_file_written=False
 
-        # Add system locale first (even if it's not a supported locale).
-        system_locale=locale.getlocale()[0]
-        self._add_locale_row(system_locale)
+        backend = self._settings.get_string("backend")
+        self._suppress_engine_cb = True
+        if backend == "whisper":
+            self.whisper_check.set_active(True)
+        else:
+            self.vosk_check.set_active(True)
+        self._suppress_engine_cb = False
 
-        # If current locale is not system locale, add it then.
-        if system_locale != self._current_locale.locale:
-            self._add_locale_row(self._current_locale.locale)
+        self._locale_list = []
+        self._locale_names = Gtk.StringList()
+        self._populate_locale_list()
+        self.language_dropdown.set_model(self._locale_names)
+        self._select_current_locale_in_dropdown()
 
-        # Load all available locales
-        supported_locales=stt_vosk_online_model_manager().supported_locales()
-        supported_locales.sort()
+        if self._current_locale.default_locale:
+            self._suppress_language_cb = True
+            self.system_language_switch.set_active(True)
+            self._suppress_language_cb = False
+            self.language_dropdown.set_sensitive(False)
 
-        for locale_str in supported_locales:
-            # Check we are not loading the current locale twice
-            if locale_str in [self._current_locale.locale, system_locale]:
-                continue
-
-            LOG_MSG.debug("loading %s", locale_str)
-            self._add_locale_row(locale_str)
+        self._init_model()
 
         # This updates _valid_formatting_file and _valid_override_file
         self._load_utterances()
 
         # Force preloading for the recognition engine whatever the DCONF settings
-        self._engine=STTGstVosk(current_locale=self._current_locale)
+        self._engine = STTGstVosk(current_locale=self._current_locale)
         self._engine.connect("model-changed", self._engine_model_changed_cb)
         self._engine.preload()
-
         LOG_MSG.debug("model exists %s", self._engine.has_model())
 
-        # Update sensitivity and such
-        if self.default_locale_switch.get_active() != self._current_locale.default_locale:
-            self.default_locale_switch.set_active(self._current_locale.default_locale)
-
-        self._set_locale_rows_sensitivity()
+        self._update_voice_commands_visibility()
 
         if self._engine.has_model() == False:
             self._engine_has_no_model()
-
-        if self._valid_formatting_file == False:
+        elif self._valid_formatting_file == False:
             self._unsupported_locale()
 
         self._toast_action=Gio.SimpleAction.new("manage_model", None)
         action_group=Gio.SimpleActionGroup.new()
         action_group.insert(self._toast_action)
         self.insert_action_group("toast", action_group)
-        self._toast_action.connect("activate", self._manage_model_action_activated)
+        self._toast_action.connect("activate",
+                                   self._manage_model_action_activated)
 
-    def _set_locale_rows_sensitivity(self):
-        for row in self._locales.values():
-            if row.check_button.get_active() == True:
-                row.set_sensitive(True)
-            else:
-                row.set_sensitive(not self._current_locale.default_locale)
+    def _populate_locale_list(self):
+        self._locale_list.clear()
+        self._locale_names = Gtk.StringList()
+        system_locale_str = locale.getlocale()[0]
+        self._append_locale_option(system_locale_str)
+        if (self._current_locale.locale != system_locale_str
+                and self._current_locale.locale not in self._locale_list):
+            self._append_locale_option(self._current_locale.locale)
 
-    def _add_locale_row(self, locale_str):
-        if len(self._locales) == 0:
-            row = STTLocaleRow(current_locale=self._current_locale, locale_str=locale_str, radio_group=None)
-        elif self._locales.get(locale_str, None) != None:
-            LOG_MSG.error("the locale is already included (%s)", locale_str)
+        supported = stt_vosk_online_model_manager().supported_locales()
+        _EXCLUDED = {"multilingual"}
+
+        for loc in sorted(supported):
+            if loc in _EXCLUDED:
+                continue
+            if loc not in self._locale_list:
+                self._append_locale_option(loc)
+
+    def _append_locale_option(self, locale_str):
+        if locale_str in (None, "", "None", "multilingual"):
             return
-        else:
-            # Get first row of the group to associate it
-            # Note: we cannot rely on the fact there is at least one row
-            row = next(iter(self._locales.items()))[1]
-            row = STTLocaleRow(current_locale=self._current_locale, locale_str=locale_str, radio_group=row.check_button)
+        if locale_str in self._locale_list:
+            return
 
-        self.localelistbox.add(row)
-        self._locales[locale_str]=row
+        system_locale_str = locale.getlocale()[0]
+        try:
+            babel_locale = Locale.parse(locale_str)
+            name = babel_locale.get_display_name(system_locale_str)
+        except (UnknownLocaleError, ValueError):
+            name = locale_str
+
+        if locale_str == system_locale_str:
+            name = _("%s (system)") % name
+
+        self._locale_list.append(locale_str)
+        self._locale_names.append(name)
+
+    def _select_current_locale_in_dropdown(self):
+        try:
+            idx = self._locale_list.index(self._current_locale.locale)
+        except ValueError:
+            idx = 0
+
+        self._suppress_language_cb = True
+        self.language_dropdown.set_selected(idx)
+        self._suppress_language_cb = False
+
+    def _init_model(self):
+        if self._model != None:
+            try:
+                self._model.disconnect_by_func(self._model_changed_cb)
+            except TypeError:
+                pass
+
+        backend = self._settings.get_string("backend")
+        locale_str = self._current_locale.locale
+
+        if backend == "whisper":
+            self._model = STTWhisperModel(locale_str=locale_str)
+        else:
+            self._model = STTVoskModel(locale_str=locale_str)
+
+        self._model.connect("changed", self._model_changed_cb)
+        self._update_model_info()
+
+    def _update_model_info(self):
+        if self._model is None or not self._model.available():
+            self.model_info_row.set_title(_("No model downloaded"))
+            self.model_info_row.set_subtitle(
+                _("Download a model to get started"))
+            self.change_model_button.set_label(_("Download"))
+            return
+
+        self.change_model_button.set_label(_("Change"))
+        model_name = self._model.get_name()
+
+        if model_name in (None, ""):
+            model_path = self._model.get_path()
+            self.model_info_row.set_title(_("Custom model"))
+            self.model_info_row.set_subtitle(
+                model_path if (model_path and model_path != "")
+                else _("Installed manually"))
+            return
+
+        backend = self._settings.get_string("backend")
+        manager = (stt_whisper_online_model_manager() if backend == "whisper"
+                   else stt_vosk_online_model_manager())
+        desc = manager.get_model_description(model_name)
+
+        self.model_info_row.set_title(model_name)
+
+        if backend == "whisper":
+            if desc is None:
+                self.model_info_row.set_subtitle(_("Unknown model"))
+            else:
+                mtype = (desc.type or "").capitalize()
+                size  = desc.size or _("unknown size")
+                if desc.locale == "en":
+                    self.model_info_row.set_subtitle(
+                        _("%s · English only · %s") % (mtype, size))
+                elif desc.locale == "multilingual":
+                    self.model_info_row.set_subtitle(
+                        _("%s · Multilingual · %s") % (mtype, size))
+                else:
+                    self.model_info_row.set_subtitle(
+                        _("%s · %s") % (mtype, size))
+        else:
+            if desc is None:
+                self.model_info_row.set_subtitle(_("Unknown size"))
+            else:
+                size = desc.size or _("unknown size")
+                if desc.is_obsolete:
+                    self.model_info_row.set_subtitle(_("Obsolete · %s") % size)
+                elif desc.type is not None and desc.type.startswith("big"):
+                    self.model_info_row.set_subtitle(
+                        _("Large model · %s") % size)
+                elif desc.type is not None:
+                    self.model_info_row.set_subtitle(
+                        _("Lightweight · %s") % size)
+                else:
+                    self.model_info_row.set_subtitle(size)
+
+    def _auto_prompt_model_download(self):
+        if self._model is not None and not self._model.available():
+            dialog = STTModelChooserDialog(model=self._model)
+            dialog.set_transient_for(self)
+            dialog.present()
+
+    def _model_changed_cb(self, model):
+        self._update_model_info()
+
+
+    def _update_voice_commands_visibility(self):
+        is_vosk = (self._settings.get_string("backend") == "vosk")
+        self.vc_whisper_warning.set_visible(not is_vosk)
+        self.voice_commands_group.set_visible(is_vosk)
+
+        if (not is_vosk
+                and self.tab_stack.get_visible_child_name() == "voice_commands"):
+            self.tab_stack.set_visible_child_name("setup")
+
+    @Gtk.Template.Callback()
+    def engine_toggled_cb(self, button):
+        if not button.get_active():
+            return
+        if getattr(self, '_suppress_engine_cb', False):
+            return
+
+        backend = "vosk" if button == self.vosk_check else "whisper"
+        current = self._settings.get_string("backend")
+        if backend == current:
+            return
+
+        self._settings.set_string("backend", backend)
+        old_locale = self._current_locale.locale
+        self._populate_locale_list()
+        self._suppress_language_cb = True
+        self.language_dropdown.set_model(self._locale_names)
+        self._suppress_language_cb = False
+
+        if old_locale in self._locale_list:
+            self._suppress_language_cb = True
+            self.language_dropdown.set_selected(
+                self._locale_list.index(old_locale))
+            self._suppress_language_cb = False
+
+        self._init_model()
+
+        self._update_voice_commands_visibility()
+        self._empty_shortcut_page()
+        self._load_utterances()
+
+        if self._model is not None and not self._model.available():
+            self._auto_prompt_model_download()
+
+    @Gtk.Template.Callback()
+    def language_selected_cb(self, dropdown, _param):
+        if self._suppress_language_cb:
+            return
+
+        idx = dropdown.get_selected()
+        if idx == Gtk.INVALID_LIST_POSITION or idx >= len(self._locale_list):
+            return
+
+        locale_str = self._locale_list[idx]
+        if locale_str == self._current_locale.locale:
+            return
+
+        self._current_locale.locale = locale_str
+
+    @Gtk.Template.Callback()
+    def system_language_switched_cb(self, switch, _param):
+        if self._suppress_language_cb:
+            return
+
+        active = switch.get_active()
+        self.language_dropdown.set_sensitive(not active)
+
+        if active:
+            self._current_locale.locale = "None"
+        else:
+            idx = self.language_dropdown.get_selected()
+            if (idx != Gtk.INVALID_LIST_POSITION
+                    and idx < len(self._locale_list)):
+                self._current_locale.locale = self._locale_list[idx]
+
+    @Gtk.Template.Callback()
+    def change_model_clicked_cb(self, *_args):
+        if self._model != None:
+            dialog = STTModelChooserDialog(model=self._model)
+            dialog.set_transient_for(self)
+            dialog.present()
+
+    def _locale_changed_cb(self, _current_locale):
+        if self.system_language_switch.get_active() != self._current_locale.default_locale:
+            self._suppress_language_cb = True
+            self.system_language_switch.set_active(
+                self._current_locale.default_locale)
+            self._suppress_language_cb = False
+
+        self.language_dropdown.set_sensitive(
+            not self._current_locale.default_locale)
+        self._select_current_locale_in_dropdown()
+
+        if self._current_locale.locale not in self._locale_list:
+            self._populate_locale_list()
+            self.language_dropdown.set_model(self._locale_names)
+            self._select_current_locale_in_dropdown()
+
+        self._init_model()
+        self._load_current_locale()
+
+        if self._model is not None and not self._model.available():
+            self._auto_prompt_model_download()
+
+    def _override_file_changed_cb(self, _current_locale, deleted):
+        if not deleted and not self._override_file_written:
+            LOG_MSG.debug("override file changed")
+            self._load_current_locale()
+        self._override_file_written = False
+
+    @Gtk.Template.Callback()
+    def new_formatting_file_button_clicked_cb(self, _button):
+        dialog = Gtk.FileChooserDialog(transient_for=self, title=_("Open Formatting File"), modal=True, action=Gtk.FileChooserAction.OPEN)
+        dialog.add_buttons(_("Cancel"), Gtk.ResponseType.CANCEL, _("Open"), Gtk.ResponseType.ACCEPT)
+        dialog.connect("response", self._open_locale_file_cb)
+        dialog.set_transient_for(self)
+        dialog.present()
+
+    def _open_locale_file_cb(self, dialog, response):
+        if response != Gtk.ResponseType.ACCEPT:
+            dialog.destroy()
+            return
+        f = dialog.get_file()
+        dialog.destroy()
+        self._current_locale.formatting_file_path(f.get_path())
+
+    @Gtk.Template.Callback()
+    def commands_row_activated_cb(self, _row):
+        self.category_stack.set_visible_child_name("commands")
+        self.main_stack.set_visible_child_name("category")
+
+    @Gtk.Template.Callback()
+    def case_row_activated_cb(self, _row):
+        self.category_stack.set_visible_child_name("case")
+        self.main_stack.set_visible_child_name("category")
+
+    @Gtk.Template.Callback()
+    def diacritics_row_activated_cb(self, _row):
+        self.category_stack.set_visible_child_name("diacritics")
+        self.main_stack.set_visible_child_name("category")
+
+    @Gtk.Template.Callback()
+    def punctuation_row_activated_cb(self, _row):
+        self.category_stack.set_visible_child_name("punctuation")
+        self.main_stack.set_visible_child_name("category")
+
+    @Gtk.Template.Callback()
+    def custom_row_activated_cb(self, _row):
+        self.category_stack.set_visible_child_name("custom")
+        self.main_stack.set_visible_child_name("category")
+
+    @Gtk.Template.Callback()
+    def back_button_clicked_cb(self, _button):
+        self.main_stack.set_visible_child_name("main")
 
     def _empty_shortcut_page(self):
-        self._valid_formatting_file_path=False
-        self._valid_formatting_file=False
-        self._valid_override_file=False
+        self._valid_formatting_file_path = False
+        self._valid_formatting_file = False
+        self._valid_override_file = False
 
-        # Empty all utterances listboxes
         for row in self._values_dict.values():
-            listbox=row.pref_group
+            listbox = row.pref_group
             listbox.remove(row)
 
         self.commands_row.set_visible(False)
@@ -190,21 +454,14 @@ class STTConfigDialog (Adw.PreferencesWindow):
         self.diacritics_row.set_visible(False)
         self.punctuation_row.set_visible(False)
 
-        self._values_dict={}
-        self._utterances_dict={}
+        self._values_dict = {}
+        self._utterances_dict = {}
 
     def _load_current_locale(self):
-        # Make sure locale exists
-        row = self._locales.get(self._current_locale.locale, None)
-        if row == None:
-            # Current locale is not in the list (and is probably not supported)
-            self._add_locale_row(self._current_locale.locale)
-
         self._empty_shortcut_page()
         self._load_utterances()
 
-        # This toast has precedence over the next
-        if self._engine.has_model() == False:
+        if not self._engine.has_model():
             self._engine_has_no_model()
             return
 
@@ -212,139 +469,40 @@ class STTConfigDialog (Adw.PreferencesWindow):
             self._no_model_toast.dismiss()
             self._no_model_toast = None
 
-        if self._valid_formatting_file == False:
+        if not self._valid_formatting_file:
             self._unsupported_locale()
         elif self._unsupported_locale_toast != None:
             self._unsupported_locale_toast.dismiss()
             self._unsupported_locale_toast = None
 
-    def _locale_changed_cb(self, current_locale):
-        if self.default_locale_switch.get_active() != self._current_locale.default_locale:
-            self.default_locale_switch.set_active(self._current_locale.default_locale)
-
-        self._set_locale_rows_sensitivity()
-
-        # Try to load formatting file
-        self._load_current_locale()
-
-    def _override_file_changed_cb(self, current_locale, deleted):
-        if deleted == False and self._override_file_written == False:
-            LOG_MSG.debug("override file changed")
-            self._load_current_locale()
-
-        self._override_file_written=False
-
-    def _error_dialog_response_cb(self, dialog, response):
-        dialog.destroy()
-
-    def open_locale_file_cb(self, dialog, response):
-        if response != Gtk.ResponseType.ACCEPT:
-            dialog.destroy()
-            return
-
-        file=dialog.get_file()
-        dialog.destroy()
-        self._current_locale.formatting_file_path(file.get_path())
-
-    @Gtk.Template.Callback()
-    def backend_dropdown_selected_cb(self, dropdown, param):
-        selected = dropdown.get_selected()
-        backend = "vosk" if selected == 0 else "whisper"
-        current_backend = self._settings.get_string("backend")
-
-        if backend != current_backend:
-            self._settings.set_string("backend", backend)
-            # Reload locale rows to show appropriate models
-            self._reload_locale_rows()
-
-    def _backend_changed_cb(self, settings, key):
-        # Update all locale rows when backend changes
-        self._reload_locale_rows()
-
-    def _reload_locale_rows(self):
-         for row in self._locales.values():
-             if row.check_button.get_active() == True:
-                 row.set_sensitive(True)
-
-    @Gtk.Template.Callback()
-    def default_locale_switched_cb(self, switch, value):
-        if switch.get_active() == True:
-            self._current_locale.locale="None"
-        else: # Set the current one
-            self._current_locale.locale=self._current_locale.locale
-
-        self._set_locale_rows_sensitivity()
-
-    @Gtk.Template.Callback()
-    def new_formatting_file_button_clicked_cb(self, button):
-        dialog=Gtk.FileChooserDialog(transient_for=self, title=_("Open Formatting File"), modal=True, action=Gtk.FileChooserAction.OPEN)
-        dialog.add_buttons(_("Cancel"), Gtk.ResponseType.CANCEL, _("Open"), Gtk.ResponseType.ACCEPT)
-        dialog.connect("response", self.open_locale_file_cb)
-        dialog.set_transient_for(self)
-        dialog.present()
-
-    @Gtk.Template.Callback()
-    def commands_row_activated_cb(self, row):
-        self.present_subpage(self.categorypage)
-        self.category_stack.set_visible_child(self.commandspage)
-
-    @Gtk.Template.Callback()
-    def case_row_activated_cb(self, row):
-        self.present_subpage(self.categorypage)
-        self.category_stack.set_visible_child(self.casepage)
-
-    @Gtk.Template.Callback()
-    def diacritics_row_activated_cb(self, row):
-        self.present_subpage(self.categorypage)
-        self.category_stack.set_visible_child(self.diacriticspage)
-
-    @Gtk.Template.Callback()
-    def punctuation_row_activated_cb(self, row):
-        self.present_subpage(self.categorypage)
-        self.category_stack.set_visible_child(self.punctuationpage)
-
-    @Gtk.Template.Callback()
-    def custom_row_activated_cb(self, row):
-        self.present_subpage(self.categorypage)
-        self.category_stack.set_visible_child(self.custompage)
-
-    @Gtk.Template.Callback()
-    def cancel_button_clicked_cb(self, button):
-        self.close_subpage()
-
     def _apply_change(self):
         LOG_MSG.debug("override file being written")
         self._override_file_written=True
 
-        json_data={}
-        command_values=[]
-        json_data["commands"]=command_values
-        case_values=[]
-        json_data["case"]=case_values
-        diacritics_values=[]
-        json_data["diacritics"]=diacritics_values
-        punctuation_values=[]
-        json_data["punctuation"]=punctuation_values
-        custom_values=[]
-        json_data["custom"]=custom_values
+        json_data = {
+            "commands":    [],
+            "case":        [],
+            "diacritics":  [],
+            "punctuation": [],
+            "custom":      [],
+        }
 
         write_changes=False
         for row in self._values_dict.values():
             value=row.get_json_data()
             if value == None:
                 continue
-
             write_changes=True
             if row.pref_group == self.commandslistbox:
-                command_values.append(value)
+                json_data["commands"].append(value)
             elif row.pref_group == self.caselistbox:
-                case_values.append(value)
+                json_data["case"].append(value)
             elif row.pref_group == self.diacriticslistbox:
-                diacritics_values.append(value)
+                json_data["diacritics"].append(value)
             elif row.pref_group == self.punctuationlistbox:
-                punctuation_values.append(value)
+                json_data["punctuation"].append(value)
             elif row.pref_group == self.customlistbox:
-                custom_values.append(value)
+                json_data["custom"].append(value)
 
         if write_changes == True:
             self._current_locale.overriding=json_data
@@ -352,31 +510,39 @@ class STTConfigDialog (Adw.PreferencesWindow):
     def shortcut_row_reset_cb(self, row):
         # After a row is reset remove extra utterances from global dictionary
         for utterance in row._extra_utterances:
-            self._utterances_dict.pop(utterance)
-
+            self._utterances_dict.pop(utterance, None)
         self._apply_change()
 
     def shortcut_row_deleted_cb(self, row):
-        self._values_dict.pop(row.value)
+        self._values_dict.pop(row.value, None)
         for utterance in row.utterances:
-            self._utterances_dict.pop(utterance)
+            self._utterances_dict.pop(utterance, None)
         for utterance in row._extra_utterances:
-            self._utterances_dict.pop(utterance)
-
+            self._utterances_dict.pop(utterance, None)
         parent = row.get_parent()
         parent.remove(row)
-
         self._apply_change()
 
-    def shortcut_dialog_response_cb(self, dialog, response):
-        if response == Gtk.ResponseType.APPLY:
-            # Modification
-            (added_utterances, removed_utterances)=dialog.apply_to_row()
-            for utterance in added_utterances:
-                self._utterances_dict[utterance] = True
-            for utterance in removed_utterances:
-                self._utterances_dict.pop(utterance)
+    def shortcut_row_activated_cb(self, row):
+        self._present_shortcut_dialog(row)
 
+    def _present_shortcut_dialog(self, row):
+        dialog = STTShortcutDialog(
+            row=row, engine=self._engine, transient_for=self)
+        dialog.connect("response", self._shortcut_dialog_response_cb)
+        dialog.present()
+
+    @Gtk.Template.Callback()
+    def new_shortcut_clicked_cb(self, _button):
+        self._present_shortcut_dialog(None)
+
+    def _shortcut_dialog_response_cb(self, dialog, response):
+        if response == Gtk.ResponseType.APPLY:
+            (added, removed) = dialog.apply_to_row()
+            for u in added:
+                self._utterances_dict[u] = True
+            for u in removed:
+                self._utterances_dict.pop(u, None)
             self._apply_change()
         elif response == Gtk.ResponseType.OK:
             # Addition
@@ -391,24 +557,10 @@ class STTConfigDialog (Adw.PreferencesWindow):
             self._values_dict[row.value]=row
 
             # Only _extra_utterances can be added
-            for utterance in row._extra_utterances:
-                self._utterances_dict[utterance] = True
-
+            for u in row._extra_utterances:
+                self._utterances_dict[u] = True
             self._apply_change()
-
         dialog.destroy()
-
-    def present_shortcut_dialog(self, row):
-        dialog = STTShortcutDialog(row=row, engine=self._engine, transient_for=self)
-        dialog.connect("response", self.shortcut_dialog_response_cb)
-        dialog.present()
-
-    def shortcut_row_activated_cb(self, row):
-        self.present_shortcut_dialog(row)
-
-    @Gtk.Template.Callback()
-    def new_shortcut_clicked_cb(self, button):
-        self.present_shortcut_dialog(None)
 
     def _load_section(self, json_data, section, listbox, cat_row):
         item_list=json_data.get(section)
@@ -435,23 +587,18 @@ class STTConfigDialog (Adw.PreferencesWindow):
 
             # Each occurrence has to be unique
             for utterance in utterances[:]:
-                existing_row = self._utterances_dict.get(utterance, False)
-                if existing_row == True:
+                if self._utterances_dict.get(utterance, False):
                     LOG_MSG.error("utterance already exists (%s)", utterance)
                     utterances.remove(utterance)
                     continue
-
                 self._utterances_dict[utterance] = True
 
-            if isinstance(value,list):
-                row=self._values_dict.get(value[0], None)
-            else:
-                row=self._values_dict.get(value, None)
+            key = value[0] if isinstance(value, list) else value
+            row = self._values_dict.get(key)
 
             if row == None:
                 if utterances == []:
                     continue
-
                 row=STTShortcutRow(value=value,
                                    utterances=utterances,
                                    description=description,
@@ -460,30 +607,10 @@ class STTConfigDialog (Adw.PreferencesWindow):
                 listbox.add(row)
                 row.connect("activated", self.shortcut_row_activated_cb)
                 row.connect("reset", self.shortcut_row_reset_cb)
-
-                if isinstance(value, list):
-                    self._values_dict[value[0]]=row
-                else:
-                    self._values_dict[value]=row
+                self._values_dict[key] = row
             else:
-                row.utterances=list(set(row.utterances)|set(utterances))
-                row.description=description
-
-    def _load_formatting_file(self):
-        LOG_MSG.debug("loading formatting file")
-        json_data=self._current_locale.formatting
-        if json_data == None:
-            return
-
-        # Sections must be loaded in the same order as in the utterance tree
-        # FIXME! should we should some categories necessary (command) ?
-        self._load_section(json_data, "commands", self.commandslistbox, self.commands_row)
-        self._load_section(json_data, "case", self.caselistbox, self.case_row)
-        self._load_section(json_data, "diacritics", self.diacriticslistbox, self.diacritics_row)
-        self._load_section(json_data, "punctuation", self.punctuationlistbox, self.punctuation_row)
-        self._load_section(json_data, "custom", self.customlistbox, None)
-
-        self._valid_formatting_file=True
+                row.utterances  = list(set(row.utterances) | set(utterances))
+                row.description = description
 
     def _load_section_override(self, item_list, listbox):
         if item_list == None:
@@ -505,20 +632,15 @@ class STTConfigDialog (Adw.PreferencesWindow):
 
                 # Each occurrence has to be unique
                 for utterance in utterances[:]:
-                    existing_row = self._utterances_dict.get(utterance, False)
-                    if existing_row == True:
+                    if self._utterances_dict.get(utterance, False):
                         LOG_MSG.error("utterance already exists (%s)", utterance)
                         utterances.remove(utterance)
                         continue
 
                     self._utterances_dict[utterance] = True
 
-            # See if a row with same value already exists.
-            # Check in all the listbox
-            if isinstance(value,list):
-                row=self._values_dict.get(value[0], None)
-            else:
-                row=self._values_dict.get(value, None)
+            key = value[0] if isinstance(value, list) else value
+            row = self._values_dict.get(key)
 
             if row != None:
                 if description != None:
@@ -536,13 +658,24 @@ class STTConfigDialog (Adw.PreferencesWindow):
                 row.connect("delete", self.shortcut_row_deleted_cb)
                 row.connect("reset", self.shortcut_row_reset_cb)
                 row.connect("activated", self.shortcut_row_activated_cb)
-                if isinstance(value, list):
-                    self._values_dict[value[0]]=row
-                else:
-                    self._values_dict[value]=row
+                self._values_dict[key]=row
+
+    def _load_formatting_file(self):
+        # Load custom formatting file as well. Note: it overrides existing keys
+        LOG_MSG.debug("loading formatting file")
+        json_data = self._current_locale.formatting
+        if json_data is None:
+            return
+
+        self._load_section(json_data, "commands",    self.commandslistbox,    self.commands_row)
+        self._load_section(json_data, "case",        self.caselistbox,        self.case_row)
+        self._load_section(json_data, "diacritics",  self.diacriticslistbox,  self.diacritics_row)
+        self._load_section(json_data, "punctuation", self.punctuationlistbox, self.punctuation_row)
+        self._load_section(json_data, "custom",      self.customlistbox,      None)
+
+        self._valid_formatting_file = True
 
     def _load_overriding_file(self):
-        # Load custom formatting file as well. Note: it overrides existing keys
         LOG_MSG.debug("loading overriding file")
         json_data=self._current_locale.overriding
         if json_data == None:
@@ -564,10 +697,8 @@ class STTConfigDialog (Adw.PreferencesWindow):
 
         self._load_overriding_file()
 
-    def _manage_model_action_activated(self, action, param):
-        # Get row for current locale
-        row = self._locales.get(self._current_locale.locale, None)
-        row.manage_model()
+    def _manage_model_action_activated(self, _action, _param):
+        self._auto_prompt_model_download()
 
     def _toast_dismissed(self, toast):
         if toast == self._no_model_toast:
@@ -587,13 +718,15 @@ class STTConfigDialog (Adw.PreferencesWindow):
         if self._unsupported_locale_toast != None:
             return
 
-        if self._valid_formatting_file_path == True:
-            self._unsupported_locale_toast=Adw.Toast(title=_("The file that defines automatic formatting for your locale does not have the proper format."), timeout=0)
+        if self._valid_formatting_file_path:
+            msg = _("The formatting file for your locale has an invalid format.")
         else:
-            self._unsupported_locale_toast=Adw.Toast(title=_("A file that defines automatic formatting for your locale is missing. You can manually add one."), timeout=0)
+            msg = _("No formatting file found for your locale. "
+                    "You can add one manually.")
 
+        self._unsupported_locale_toast = Adw.Toast(title=msg, timeout=0)
         self._unsupported_locale_toast.connect("dismissed", self._toast_dismissed)
-        self.add_toast(self._unsupported_locale_toast)
+        self.toast_overlay.add_toast(self._unsupported_locale_toast)
 
     def _engine_has_no_model(self):
         if self._no_model_toast != None:
@@ -603,9 +736,9 @@ class STTConfigDialog (Adw.PreferencesWindow):
             self._unsupported_locale_toast.dismiss()
             self._unsupported_locale_toast = None
 
-        self._no_model_toast=Adw.Toast(title=_("There is no available model for the current locale"), timeout=0, button_label=_("Download Model"), action_name="toast.manage_model")
+        self._no_model_toast=Adw.Toast(title=_("No model available for current locale"), timeout=0, button_label=_("Download"), action_name="toast.manage_model")
         self._no_model_toast.connect("dismissed", self._toast_dismissed)
-        self.add_toast(self._no_model_toast)
+        self.toast_overlay.add_toast(self._no_model_toast)
 
     def _engine_model_changed_cb(self, engine):
         if engine.has_model() == False:
@@ -613,4 +746,3 @@ class STTConfigDialog (Adw.PreferencesWindow):
         elif self._no_model_toast != None:
             self._no_model_toast.dismiss()
             self._no_model_toast = None
-
