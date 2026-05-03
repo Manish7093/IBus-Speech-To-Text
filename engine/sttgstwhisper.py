@@ -21,6 +21,12 @@ try:
 except ImportError:
     LOG_MSG.warning("pywhispercpp not available. Install with: pip install pywhispercpp")
     WHISPER_AVAILABLE = False
+try:
+    from sttvad import STTVad
+    VAD_MODULE_OK = True
+except ImportError:
+    LOG_MSG.warning("sttvad module not found - VAD disabled")
+    VAD_MODULE_OK = False
 
 WINDOW_SECONDS      = 5.0
 MIN_SAMPLES         = 1024
@@ -30,6 +36,7 @@ TEMPERATURE_INC     = -1.0
 MAX_TOKENS          = 32
 _cpu_count = os.cpu_count() or 1
 N_THREADS           = max(4, _cpu_count // 2 )
+MAX_RING_QUEUE_DEPTH = 2
 
 class STTGstWhisper(STTGstBase):
     __gtype_name__ = 'STTGstWhisper'
@@ -74,11 +81,27 @@ class STTGstWhisper(STTGstBase):
         self._model_id = 0
         self._model    = None
         self._whisper  = None
+        self._vad      = None
         self._set_model()
         self._ring_buffer     = np.array([], dtype=np.float32)
         self._ring_lock       = threading.Lock()
         self._chunk_buffer    = []
         self._chunk_samples   = 0
+
+        if VAD_MODULE_OK:
+            self._vad = STTVad(
+                speech_threshold=0.5,
+                silence_duration_ms=800, #600
+                speech_pad_ms=200,
+                min_speech_duration_ms=500, #300
+                max_speech_duration_s=15.0,
+                freq_thold=100.0,
+            )
+            LOG_MSG.info("VAD active: %s", self._vad.backend_name)
+        else:
+            self._vad = None
+            LOG_MSG.warning("VAD not available")
+
         self._process_queue   = queue.Queue()
         self._process_thread  = None
         self._stop_processing = False
@@ -105,6 +128,7 @@ class STTGstWhisper(STTGstBase):
 
         self._appsink = None
         self._whisper = None
+        self._vad     = None
         LOG_MSG.info("Whisper.destroy() called")
         super().destroy()
 
@@ -133,6 +157,10 @@ class STTGstWhisper(STTGstBase):
                 temperature_inc=TEMPERATURE_INC,
                 max_tokens=MAX_TOKENS,
                 n_threads=N_THREADS,
+                no_speech_thold=0.6,
+                logprob_thold=-1.5,
+                entropy_thold=2.8,
+                suppress_blank=True,
             )
 
             if lang_code:
@@ -168,6 +196,8 @@ class STTGstWhisper(STTGstBase):
             self.pipeline.set_state(state)
 
         if success:
+            if self._vad is not None:
+                self._vad.reset()
             self.emit("model-changed")
 
     def _model_changed(self, model):
@@ -202,12 +232,20 @@ class STTGstWhisper(STTGstBase):
         audio_data = np.frombuffer(map_info.data, dtype=np.int16)
         buf.unmap(map_info)
 
-        self._chunk_buffer.append(audio_data)
-        self._chunk_samples += len(audio_data)
-        window_samples = int(WINDOW_SECONDS * SAMPLE_RATE)
-        if self._chunk_samples >= window_samples:
-            self._flush_chunks_to_ring()
-            self._dispatch_to_worker()
+        audio_float = audio_data.astype(np.float32) / 32768.0
+
+        if self._vad is not None:
+            segments = self._vad.process(audio_float)
+            for segment in segments:
+                LOG_MSG.debug("VAD segment ready: %.2f s", len(segment) / SAMPLE_RATE)
+                self._enqueue_for_transcription(segment, source='vad')
+        else:
+            self._chunk_buffer.append(audio_data)
+            self._chunk_samples += len(audio_data)
+            window_samples = int(WINDOW_SECONDS * SAMPLE_RATE)
+            if self._chunk_samples >= window_samples:
+                self._flush_chunks_to_ring()
+                self._dispatch_to_worker()
 
         return Gst.FlowReturn.OK
 
@@ -232,7 +270,31 @@ class STTGstWhisper(STTGstBase):
                 return
             snapshot = self._ring_buffer.copy()
 
-        self._process_queue.put(snapshot)
+        self._enqueue_for_transcription(snapshot, source='ring')
+
+    def _enqueue_for_transcription(self, audio_float32: np.ndarray, source: str):
+        if source == 'ring':
+            pending_ring = sum(
+                1 for item in list(self._process_queue.queue)
+                if item[0] == 'ring'
+            )
+            if pending_ring >= MAX_RING_QUEUE_DEPTH:
+                temp = []
+                dropped = False
+                while True:
+                    try:
+                        item = self._process_queue.get_nowait()
+                        if item[0] == 'ring' and not dropped:
+                            self._process_queue.task_done()
+                            dropped = True
+                        else:
+                            temp.append(item)
+                    except queue.Empty:
+                        break
+                for item in temp:
+                    self._process_queue.put(item)
+
+        self._process_queue.put((source, audio_float32))
 
         if self._process_thread is None or not self._process_thread.is_alive():
             self._process_thread = threading.Thread(target=self._process_worker, daemon=True)
@@ -242,7 +304,7 @@ class STTGstWhisper(STTGstBase):
         """Background worker to process audio"""
         while not self._stop_processing:
             try:
-                audio = self._process_queue.get(timeout=0.1)
+                source, audio = self._process_queue.get(timeout=0.1)
             except queue.Empty:
                 continue
 
@@ -252,9 +314,7 @@ class STTGstWhisper(STTGstBase):
 
             try:
                 LOG_MSG.debug("Starting transcription of %d samples", len(audio))
-                
                 segments = self._whisper.transcribe(audio)
-                
                 text_parts = []
                 for segment in segments:
                     if not hasattr(segment, 'text'):
@@ -286,8 +346,14 @@ class STTGstWhisper(STTGstBase):
         return False
 
     def get_final_results(self):
-        self._flush_chunks_to_ring()
-        self._dispatch_to_worker()
+        if self._vad is not None:
+            remaining = self._vad.flush()
+            if remaining is not None:
+                self._enqueue_for_transcription(remaining, source='vad')
+        else:
+            self._flush_chunks_to_ring()
+            self._dispatch_to_worker()
+
         self._process_queue.join()
 
     def get_results(self):
