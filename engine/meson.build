@@ -17,6 +17,7 @@ stt_sources = [
     'sttshortcutrow.py',
     'sttshortcutdialog.py',
     'sttutterancerow.py',
+    'sttvad.py',
     'sttmodelchooserdialog.py',
     'sttvoskmodelmanagers.py',
     'sttwhispermodelmanagers.py',
