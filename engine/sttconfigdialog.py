@@ -41,6 +41,7 @@ from sttwhispermodel import STTWhisperModel
 from sttmodelchooserdialog import STTModelChooserDialog
 
 from sttgstvosk import STTGstVosk
+from sttgstwhisper import STTGstWhisper
 
 LOG_MSG=logging.getLogger()
 
@@ -95,6 +96,7 @@ class STTConfigDialog (Adw.Window):
         self._unsupported_locale_toast = None
         self._model = None
         self._suppress_language_cb = False
+        self._engine = None
 
         self._settings=Gio.Settings.new("org.freedesktop.ibus.engine.stt")
         self._settings.bind("preload", self.preload_model_switch, "active", Gio.SettingsBindFlags.DEFAULT)
@@ -120,7 +122,9 @@ class STTConfigDialog (Adw.Window):
         self._locale_list = []
         self._locale_names = Gtk.StringList()
         self._populate_locale_list()
+        self._suppress_language_cb = True
         self.language_dropdown.set_model(self._locale_names)
+        self._suppress_language_cb = False
         self._select_current_locale_in_dropdown()
 
         if self._current_locale.default_locale:
@@ -134,15 +138,11 @@ class STTConfigDialog (Adw.Window):
         # This updates _valid_formatting_file and _valid_override_file
         self._load_utterances()
 
-        # Force preloading for the recognition engine whatever the DCONF settings
-        self._engine = STTGstVosk(current_locale=self._current_locale)
-        self._engine.connect("model-changed", self._engine_model_changed_cb)
-        self._engine.preload()
-        LOG_MSG.debug("model exists %s", self._engine.has_model())
+        self._create_engine()
 
         self._update_voice_commands_visibility()
 
-        if self._engine.has_model() == False:
+        if self._model is None or not self._model.available():
             self._engine_has_no_model()
         elif self._valid_formatting_file == False:
             self._unsupported_locale()
@@ -153,6 +153,29 @@ class STTConfigDialog (Adw.Window):
         self.insert_action_group("toast", action_group)
         self._toast_action.connect("activate",
                                    self._manage_model_action_activated)
+
+
+    def _create_engine(self):
+        # Instantiate the recognition engine matching the current backend.
+        # Tear down existing engine if present
+        if self._engine is not None:
+            try:
+                self._engine.disconnect_by_func(self._engine_model_changed_cb)
+            except TypeError:
+                pass
+            self._engine.destroy()
+            self._engine = None
+
+        backend = self._settings.get_string("backend")
+        if backend == "whisper":
+            self._engine = STTGstWhisper(current_locale=self._current_locale)
+        else:
+            self._engine = STTGstVosk(current_locale=self._current_locale)
+
+        self._engine.connect("model-changed", self._engine_model_changed_cb)
+        self._engine.preload()
+        LOG_MSG.debug("engine created (backend=%s), has_model=%s",
+                      backend, self._engine.has_model())
 
     def _populate_locale_list(self):
         self._locale_list.clear()
@@ -322,6 +345,7 @@ class STTConfigDialog (Adw.Window):
 
         self._init_model()
 
+        self._create_engine()
         self._update_voice_commands_visibility()
         self._empty_shortcut_page()
         self._load_utterances()
@@ -380,7 +404,9 @@ class STTConfigDialog (Adw.Window):
 
         if self._current_locale.locale not in self._locale_list:
             self._populate_locale_list()
+            self._suppress_language_cb = True
             self.language_dropdown.set_model(self._locale_names)
+            self._suppress_language_cb = False
             self._select_current_locale_in_dropdown()
 
         self._init_model()
@@ -624,7 +650,6 @@ class STTConfigDialog (Adw.Window):
 
             utterances=item.get("utterances")
             description=item.get("description")
-
             if utterances not in (None,[]):
                 # In case there is only one
                 if isinstance(utterances, str):
