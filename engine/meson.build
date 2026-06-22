@@ -21,6 +21,9 @@ stt_sources = [
     'sttmodelchooserdialog.py',
     'sttvoskmodelmanagers.py',
     'sttwhispermodelmanagers.py',
+    'sttgstonnxasr.py',
+    'sttonnxasrmodel.py',
+    'sttonnxasrmodelmanagers.py',
     'sttwordstodigits.py',
     'sttmodelrow.py'
     ]

@@ -33,9 +33,11 @@ from sttutils import *
 
 from sttvoskmodel import STTVoskModel
 from sttwhispermodel import STTWhisperModel
+from sttonnxasrmodel import STTOnnxAsrModel
 from sttmodelchooserdialog import STTModelChooserDialog
 from sttvoskmodelmanagers import stt_vosk_online_model_manager
 from sttwhispermodelmanagers import stt_whisper_online_model_manager
+from sttonnxasrmodelmanagers import stt_onnxasr_online_model_manager
 
 
 LOG_MSG=logging.getLogger()
@@ -77,7 +79,12 @@ class STTLocaleRow(Adw.ActionRow):
 
     def _init_model(self):
         backend = self._settings.get_string("backend")
-        self._model = STTWhisperModel(locale_str=self._locale) if backend == "whisper" else STTVoskModel(locale_str=self._locale)
+        if backend == "whisper":
+            self._model = STTWhisperModel(locale_str=self._locale)
+        elif backend == "onnxasr":
+            self._model = STTOnnxAsrModel(locale_str=self._locale)
+        else:
+            self._model = STTVoskModel(locale_str=self._locale)
 
         self._model.connect("changed", self._model_changed)
         self.update_description()
@@ -135,7 +142,12 @@ class STTLocaleRow(Adw.ActionRow):
             return
 
         backend = self._settings.get_string("backend")
-        manager = stt_whisper_online_model_manager() if backend == "whisper" else stt_vosk_online_model_manager()
+        if backend == "whisper":
+            manager = stt_whisper_online_model_manager()
+        elif backend == "onnxasr":
+            manager = stt_onnxasr_online_model_manager()
+        else:
+            manager = stt_vosk_online_model_manager()
         model = manager.get_model_description(model_name)
         if backend == "whisper":
             if model is None:
