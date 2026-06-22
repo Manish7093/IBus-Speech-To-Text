@@ -34,10 +34,12 @@ from sttutils import *
 from sttvoskmodel import STTVoskModel
 from sttwhispermodel import STTWhisperModel
 from sttonnxasrmodel import STTOnnxAsrModel
+from sttmoonshinemodel import STTMoonshineModel
 from sttmodelchooserdialog import STTModelChooserDialog
 from sttvoskmodelmanagers import stt_vosk_online_model_manager
 from sttwhispermodelmanagers import stt_whisper_online_model_manager
 from sttonnxasrmodelmanagers import stt_onnxasr_online_model_manager
+from sttmoonshinemodelmanagers import stt_moonshine_online_model_manager
 
 
 LOG_MSG=logging.getLogger()
@@ -83,6 +85,8 @@ class STTLocaleRow(Adw.ActionRow):
             self._model = STTWhisperModel(locale_str=self._locale)
         elif backend == "onnxasr":
             self._model = STTOnnxAsrModel(locale_str=self._locale)
+        elif backend == "moonshine":
+            self._model = STTMoonshineModel(locale_str=self._locale)
         else:
             self._model = STTVoskModel(locale_str=self._locale)
 
@@ -146,9 +150,24 @@ class STTLocaleRow(Adw.ActionRow):
             manager = stt_whisper_online_model_manager()
         elif backend == "onnxasr":
             manager = stt_onnxasr_online_model_manager()
+        elif backend == "moonshine":
+            manager = stt_moonshine_online_model_manager()
         else:
             manager = stt_vosk_online_model_manager()
         model = manager.get_model_description(model_name)
+        if backend == "moonshine":
+            if model is None:
+                self.set_subtitle(_("Unknown Moonshine model"))
+            else:
+                model_type = (model.type or "").replace("_", " ").title()
+                size       = model.size or _("unknown size")
+                quality    = model.quality or ""
+                if quality:
+                    self.set_subtitle(_("%s – %s – %s") % (model_type, quality, size))
+                else:
+                    self.set_subtitle(_("%s – %s") % (model_type, size))
+            return
+
         if backend == "whisper":
             if model is None:
                 self.set_subtitle(_("Unknown Whisper model"))

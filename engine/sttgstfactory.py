@@ -27,6 +27,7 @@ from sttutils import *
 from sttgstvosk import STTGstVosk
 from sttgstwhisper import STTGstWhisper
 from sttgstonnxasr import STTGstOnnxAsr
+from sttgstmoonshine import STTGstMoonshine
 
 LOG_MSG=logging.getLogger()
 
@@ -55,6 +56,9 @@ class STTGstFactory(GObject.GObject):
             elif backend == "onnxasr":
                 LOG_MSG.info("Using onnx-asr backend")
                 engine=STTGstOnnxAsr()
+            elif backend == "moonshine":
+                LOG_MSG.info("Using Moonshine backend")
+                engine=STTGstMoonshine()
             else:
                 LOG_MSG.info("Using Vosk backend")
                 engine=STTGstVosk()

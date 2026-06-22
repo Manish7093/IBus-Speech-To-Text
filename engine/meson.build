@@ -24,6 +24,9 @@ stt_sources = [
     'sttgstonnxasr.py',
     'sttonnxasrmodel.py',
     'sttonnxasrmodelmanagers.py',
+    'sttgstmoonshine.py',
+    'sttmoonshinemodel.py',
+    'sttmoonshinemodelmanagers.py',
     'sttwordstodigits.py',
     'sttmodelrow.py'
     ]

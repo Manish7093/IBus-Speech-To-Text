@@ -84,6 +84,20 @@
                                         </child>
                                       </object>
                                     </child>
+                                    <child>
+                                      <object class="AdwActionRow" id="moonshine_action_row">
+                                        <property name="title">Moonshine</property>
+                                        <property name="subtitle" translatable="yes">Low-latency streaming, no voice commands</property>
+                                        <property name="activatable-widget">moonshine_check</property>
+                                        <child type="prefix">
+                                          <object class="GtkCheckButton" id="moonshine_check">
+                                          <property name="valign">center</property>
+                                          <property name="group">vosk_check</property>
+                                          <signal name="toggled" handler="engine_toggled_cb"/>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
 

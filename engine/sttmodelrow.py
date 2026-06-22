@@ -31,6 +31,7 @@ from sttutils import *
 from sttvoskmodelmanagers import STTDownloadState
 from sttwhispermodelmanagers import STTDownloadState as WhisperDownloadState
 from sttwhispermodelmanagers import STTDownloadState as WhisperDownloadState, STTWhisperModelDescription
+from sttmoonshinemodelmanagers import STTMoonshineModelDescription
 
 LOG_MSG=logging.getLogger()
 
@@ -176,6 +177,14 @@ class STTModelRow(Adw.ActionRow):
                 quality = _("Quantized Whisper model")
 
             lang = _("English only") if (self._desc.locale == "en") else _("Multilingual")
+            description = _("%s \u2013 %s \u2013 %s") % (quality, lang, size)
+
+        elif isinstance(self._desc, STTMoonshineModelDescription):
+            quality = self._desc.quality or _("Streaming model")
+            if self._desc.locale == "en":
+                lang = _("English only")
+            else:
+                lang = self._desc.locale.upper() if self._desc.locale else _("Multilingual")
             description = _("%s \u2013 %s \u2013 %s") % (quality, lang, size)
 
         elif self._desc.type is not None:
