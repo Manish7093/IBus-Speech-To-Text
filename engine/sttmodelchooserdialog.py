@@ -32,6 +32,8 @@ from sttwhispermodelmanagers import stt_whisper_online_model_manager
 from sttonnxasrmodelmanagers import stt_onnxasr_online_model_manager
 from sttwhispermodel import STTWhisperModel
 from sttonnxasrmodel import STTOnnxAsrModel
+from sttmoonshinemodelmanagers import stt_moonshine_online_model_manager
+from sttmoonshinemodel import STTMoonshineModel
 
 LOG_MSG=logging.getLogger()
 
@@ -62,18 +64,21 @@ class STTModelChooserDialog(Gtk.Dialog):
 
         self._is_whisper = isinstance(model, STTWhisperModel)
         self._is_onnxasr = isinstance(model, STTOnnxAsrModel)
+        self._is_moonshine = isinstance(model, STTMoonshineModel)
         if self._is_whisper:
             self._manager = stt_whisper_online_model_manager()
         elif self._is_onnxasr:
             self._manager = stt_onnxasr_online_model_manager()
+        elif self._is_moonshine:
+            self._manager = stt_moonshine_online_model_manager()
         else:
             self._manager = stt_vosk_online_model_manager()
 
         locale_str=model.get_locale()
         full_list=[]
 
-        # For Whisper/onnx-asr, use deduplication to avoid showing multilingual models twice
-        if self._is_whisper or self._is_onnxasr:
+        # For Whisper/onnx-asr/moonshine, use deduplication to avoid showing multilingual models twice
+        if self._is_whisper or self._is_onnxasr or self._is_moonshine:
             seen_models = set()
             models_to_check = [locale_str]
             if len(locale_str) > 2:
@@ -104,6 +109,8 @@ class STTModelChooserDialog(Gtk.Dialog):
             backend_name = "Whisper"
         elif self._is_onnxasr:
             backend_name = "onnx-asr"
+        elif self._is_moonshine:
+            backend_name = "Moonshine"
         else:
             backend_name = "Vosk"
         self.set_title(_("Manage %s Recognition Models") % backend_name)
@@ -184,10 +191,13 @@ class STTModelChooserDialog(Gtk.Dialog):
             dialog.present()
             return
 
-        # For Whisper, allow selecting files; for Vosk, allow selecting folders
+        # For Whisper, allow selecting files; for Vosk/moonshine, allow selecting folders
         if self._is_whisper:
             action = Gtk.FileChooserAction.OPEN
             title = _("Open Whisper Model File")
+        elif self._is_moonshine:
+            action = Gtk.FileChooserAction.SELECT_FOLDER
+            title = _("Open Moonshine Model Folder")
         else:
             action = Gtk.FileChooserAction.SELECT_FOLDER
             title = _("Open Vosk Model Folder")

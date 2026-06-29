@@ -56,5 +56,10 @@
       <default>'None'</default>
       <description>A JSON formatted string that is used to associate locales with their onnx-asr models. It can be the name of a pre-configured model or a HuggingFace repository ID.</description>
     </key>
+    <key type="s" name="moonshine-models">
+      <summary>Names or paths of Moonshine models</summary>
+      <default>'None'</default>
+      <description>A JSON formatted string that associates locales with their Moonshine models. Each value is a Moonshine model name (for example 'base-en' or 'small-streaming-en') resolved from the Moonshine cache, or an absolute path to a custom model folder.</description>
+    </key>
   </schema>
 </schemalist>
