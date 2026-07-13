@@ -795,6 +795,13 @@ class STTConfigDialog (Adw.Window):
         if self._no_model_toast != None:
             return
 
+        # Formatting files only exist for vosk; other engines have no files to find
+        if self._settings.get_string("backend") != "vosk":
+            if self._unsupported_locale_toast is not None:
+                self._unsupported_locale_toast.dismiss()
+                self._unsupported_locale_toast = None
+            return
+
         if self._unsupported_locale_toast != None:
             return
 
