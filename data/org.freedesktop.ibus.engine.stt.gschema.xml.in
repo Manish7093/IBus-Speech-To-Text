@@ -44,7 +44,7 @@
     <key type="s" name="backend">
       <summary>Speech recognition backend</summary>
       <default>'vosk'</default>
-      <description>Choose the speech recognition backend: 'vosk', 'whisper', or 'onnxasr'</description>
+      <description>Choose the speech recognition backend: 'vosk', 'whisper', 'onnxasr' or 'moonshine'</description>
     </key>
     <key type="s" name="whisper-models">
       <summary>Paths to Whisper models</summary>
