@@ -370,8 +370,8 @@ class STTEngine(IBus.Engine):
                             version=stt_utils_get_version(),
                             copyright="Copyright © 2022 Philippe Rouquier",
                             comments=_("What you say is always write."),
-                            website="https://github.com/PhilippeRo/IBus-Speech-To-Text",
-                            issue_url="https://github.com/PhilippeRo/IBus-Speech-To-Text/issues",
+                            website="https://github.com/Manish7093/IBus-Speech-To-Text",
+                            issue_url="https://github.com/Manish7093/IBus-Speech-To-Text/issues",
                             license_type=Gtk.License.GPL_3_0,
                             translator_credits=_("translator-credits"))
             dialog.present()
