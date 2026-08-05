@@ -13,38 +13,39 @@ LOG_MSG = logging.getLogger()
 
 SAMPLE_RATE = 16000
 
-try:
-    from moonshine_voice import (
-        Transcriber,
-        TranscriptEventListener,
-        ModelArch,
-    )
-    MOONSHINE_AVAILABLE = True
-except ImportError:
-    LOG_MSG.warning("moonshine_voice not available. Install with: pip install moonshine-voice")
-    MOONSHINE_AVAILABLE = False
-    TranscriptEventListener = object
+_LISTENER_CLASS = None
 
-class _LineListener(TranscriptEventListener):
+def _line_listener_class():
+    #Build the listener subclass on first use
+    global _LISTENER_CLASS
+    if _LISTENER_CLASS is not None:
+        return _LISTENER_CLASS
 
-    def __init__(self, engine):
-        if MOONSHINE_AVAILABLE:
+    from moonshine_voice import TranscriptEventListener
+
+    class _LineListener(TranscriptEventListener):
+
+        def __init__(self, engine):
             super().__init__()
-        self._engine = engine
-        self._emitted_lines = []
+            self._engine = engine
+            self._emitted_lines = []
 
-    def reset(self):
-        self._emitted_lines.clear()
+        def reset(self):
+            self._emitted_lines.clear()
 
-    def on_line_completed(self, event):
-        line = event.line
-        if any(line is seen for seen in self._emitted_lines):
-            return
-        self._emitted_lines.append(line)
-        text = (line.text or "").strip()
-        if text:
-            LOG_MSG.info("Moonshine transcription result: '%s'", text)
-            GLib.idle_add(self._engine._emit_text, text)
+        def on_line_completed(self, event):
+            line = event.line
+            if any(line is seen for seen in self._emitted_lines):
+                return
+            self._emitted_lines.append(line)
+            text = (line.text or "").strip()
+            if text:
+                LOG_MSG.info("Moonshine transcription result: '%s'", text)
+                GLib.idle_add(self._engine._emit_text, text)
+
+    _LISTENER_CLASS = _LineListener
+    return _LISTENER_CLASS
+
 
 class STTGstMoonshine(STTGstBase):
     __gtype_name__ = 'STTGstMoonshine'
@@ -93,6 +94,7 @@ class STTGstMoonshine(STTGstBase):
         self._tx_lock = threading.Lock()
         self._session_active = False
         self._stopping = False
+        self._destroyed = False
 
         self._process_queue = queue.Queue()
         self._stop_processing = False
@@ -103,11 +105,11 @@ class STTGstMoonshine(STTGstBase):
 
     def __del__(self):
         try:
-            if LOG_MSG is not None:
-                LOG_MSG.info("Moonshine __del__")
             self._stop_processing = True
-            if self._process_thread is not None:
-                self._process_thread.join(timeout=2.0)
+            thread = self._process_thread
+            self._process_thread = None
+            if thread is not None:
+                thread.join(timeout=2.0)
         except Exception:
             pass
         try:
@@ -116,24 +118,36 @@ class STTGstMoonshine(STTGstBase):
             pass
 
     def destroy(self):
+        if self._destroyed:
+            LOG_MSG.debug("Moonshine engine already destroyed")
+            return
+        self._destroyed = True
+
         self._stop_processing = True
-        if self._process_thread is not None:
-            self._process_thread.join(timeout=2.0)
 
-        self._current_locale.disconnect(self._locale_id)
-        self._locale_id = 0
+        thread = self._process_thread
+        self._process_thread = None
+        if thread is not None:
+            thread.join(timeout=2.0)
+            if thread.is_alive():
+                LOG_MSG.warning("Moonshine worker thread did not stop in time")
 
-        if self._model_id != 0:
+        if self._locale_id != 0:
+            self._current_locale.disconnect(self._locale_id)
+            self._locale_id = 0
+
+        if self._model_id != 0 and self._model is not None:
             self._model.disconnect(self._model_id)
             self._model_id = 0
 
         with self._tx_lock:
             self._teardown_transcriber()
 
-        if self._appsink is not None and getattr(self, "_new_sample_id", 0) !=0:
-            self._appsink.disconnect(self._new_sample_id)
-            self._new_sample_id = 0
+        if self._appsink is not None and self._on_new_sample_id != 0:
+            self._appsink.disconnect(self._on_new_sample_id)
+            self._on_new_sample_id = 0
         self._appsink = None
+
         LOG_MSG.info("Moonshine.destroy() called")
         super().destroy()
 
@@ -150,14 +164,18 @@ class STTGstMoonshine(STTGstBase):
         self._listener = None
 
     def _load_moonshine_model(self, model_path, model_arch):
-        if not MOONSHINE_AVAILABLE:
-            LOG_MSG.error("moonshine_voice not available")
-            return False
         try:
-            arch = model_arch if model_arch is not None else ModelArch.BASE
+            from moonshine_voice import ModelArch, Transcriber
+        except Exception as e:
+            LOG_MSG.error("moonshine_voice not available (%s). "
+                          "Install with: pip install moonshine-voice", e)
+            return False
+
+        try:
+            arch = (ModelArch(model_arch) if model_arch is not None else ModelArch.BASE)
             LOG_MSG.info("Loading Moonshine model: %s (arch=%s)", model_path, arch)
             transcriber = Transcriber(model_path=model_path, model_arch=arch)
-            listener = _LineListener(self)
+            listener = _line_listener_class()(self)
             transcriber.add_listener(listener)
             with self._tx_lock:
                 self._teardown_transcriber()

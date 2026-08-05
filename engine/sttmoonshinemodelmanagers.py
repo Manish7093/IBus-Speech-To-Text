@@ -1,5 +1,7 @@
 import os
 import logging
+import importlib
+import importlib.util
 import threading
 
 from pathlib import Path
@@ -9,23 +11,14 @@ from gi.repository import GObject, GLib
 
 LOG_MSG = logging.getLogger()
 
-
-try:
-    from moonshine_voice import ModelArch
-    from moonshine_voice.download import (
-        MODEL_INFO,
-        find_model_info,
-        get_components_for_model_info,
-        get_model_for_language,
-    )
-    from moonshine_voice.download_file import get_cache_dir
-    MOONSHINE_AVAILABLE = True
-except Exception as e:
-    LOG_MSG.warning("moonshine_voice model catalog unavailable (%s). "
-                    "Install/upgrade with: pip install -U moonshine-voice", e)
-    MOONSHINE_AVAILABLE = False
-    MODEL_INFO = {}
-    ModelArch = None
+_ARCH_NAMES = {
+    0: "tiny",
+    1: "base",
+    2: "tiny-streaming",
+    3: "base-streaming",
+    4: "small-streaming",
+    5: "medium-streaming",
+}
 
 _ARCH_SIZES = {
     "tiny":             "~50 MB",
@@ -46,15 +39,9 @@ _ARCH_QUALITY = {
 }
 
 def _arch_to_string(model_arch):
-    return {
-        0: "tiny",
-        1: "base",
-        2: "tiny-streaming",
-        3: "base-streaming",
-        4: "small-streaming",
-        5: "medium-streaming",
-    }.get(int(model_arch), "base")
-
+    if model_arch is None:
+        return "base"
+    return _ARCH_NAMES.get(int(model_arch), "base")
 
 class STTDownloadState(float, Enum):
     STOPPED = -1.0
@@ -67,26 +54,114 @@ def _lang_of_locale(locale_str):
         return None
     return locale_str[0:2].lower()
 
-def _all_model_infos():
-    for lang, entry in MODEL_INFO.items():
-        for model in entry.get("models", []):
-            yield model["model_name"], lang, model
-
-def _expected_model_path(model_info):
-    cache_dir = get_cache_dir()
-    folder = model_info["download_url"].replace("https://", "")
-    return Path(cache_dir, folder)
-
-def _model_present(model_info):
-    root = _expected_model_path(model_info)
-    if not root.is_dir():
-        return False
+def moonshine_installed():
+    #True when moonshine-voice can be imported right now
     try:
-        components = get_components_for_model_info(model_info)
-    except Exception:
-        components = ["tokenizer.bin"]
-    return all((root / component).is_file() for component in components)
+        if importlib.util.find_spec("moonshine_voice") is not None:
+            return True
+        importlib.invalidate_caches()
+        return importlib.util.find_spec("moonshine_voice") is not None
+    except (ImportError, ValueError, TypeError) as error:
+        LOG_MSG.debug("cannot look up moonshine_voice (%s)", error)
+        return False
 
+def _moonshine_cache_dir():
+    #Same directory as moonshine_voice.download_file.get_cache_dir(), computed without importing the package
+    override = os.environ.get("MOONSHINE_VOICE_CACHE")
+    if override:
+        return Path(override)
+
+    xdg = os.environ.get("XDG_CACHE_HOME")
+    if xdg:
+        return Path(xdg) / "moonshine_voice"
+
+    return Path.home() / ".cache" / "moonshine_voice"
+
+_CATALOG = None          # {model_name: {...}}
+_CATALOG_LOCALES = None  # {lang: [model_name, ...]}
+
+def _build_catalog():
+    from moonshine_voice.download import find_model_info, supported_languages
+
+    models = {}
+    locales = {}
+
+    for lang in supported_languages():
+        for arch_value in sorted(_ARCH_NAMES):
+            try:
+                info = find_model_info(lang, arch_value)
+            except Exception:
+                # This language simply has no model for that architecture.
+                continue
+
+            arch_name = _ARCH_NAMES[arch_value]
+            name = "%s-%s" % (arch_name, lang)
+            models[name] = {
+                "name": name,
+                "lang": lang,
+                "arch": arch_value,
+                "arch_name": arch_name,
+                "download_url": info.get("download_url", ""),
+            }
+            locales.setdefault(lang, []).append(name)
+
+    return models, locales
+
+def _catalog():
+    global _CATALOG, _CATALOG_LOCALES
+
+    if _CATALOG is not None:
+        return _CATALOG, _CATALOG_LOCALES
+
+    if not moonshine_installed():
+        return {}, {}
+
+    try:
+        models, locales = _build_catalog()
+    except Exception as error:
+        LOG_MSG.warning("moonshine_voice model catalog unavailable (%s). "
+                        "Install/upgrade with: pip install -U moonshine-voice",
+                        error)
+        return {}, {}
+
+    if not models:
+        LOG_MSG.warning("moonshine_voice returned an empty model catalog")
+        return {}, {}
+
+    _CATALOG = models
+    _CATALOG_LOCALES = locales
+    LOG_MSG.debug("moonshine catalog built (%d models, %d languages)",
+                  len(models), len(locales))
+    return _CATALOG, _CATALOG_LOCALES
+
+def _model_root(entry):
+    url = entry.get("download_url") or ""
+    if not url:
+        return None
+    return Path(_moonshine_cache_dir(), url.replace("https://", ""))
+
+def _model_present(entry):
+    root = _model_root(entry)
+    if root is None or not root.is_dir():
+        return False
+
+    components = None
+    try:
+        from moonshine_voice.download import (find_model_info,
+                                              get_components_for_model_info)
+        components = get_components_for_model_info(
+            find_model_info(entry["lang"], entry["arch"]))
+    except Exception as error:
+        LOG_MSG.debug("cannot list components of %s (%s)",
+                      entry["name"], error)
+
+    if components:
+        return all((root / component).is_file() for component in components)
+
+    try:
+        return any(root.iterdir())
+    except OSError:
+        return False
 
 class STTMoonshineModelDescription(GObject.Object):
     __gtype_name__ = "STTMoonshineModelDescription"
@@ -106,21 +181,32 @@ class STTMoonshineModelDescription(GObject.Object):
         self.quality = init_model.quality if init_model is not None else ""
 
         self._operation = None
+        self._downloaded_path = None
         self.download_progress = STTDownloadState.STOPPED
 
     def _download_finished(self):
         self._operation = None
         self.download_progress = STTDownloadState.STOPPED
-        info = find_model_info(self.lang, self.arch)
-        if _model_present(info):
-            path = str(_expected_model_path(info))
+
+        path = self._downloaded_path
+        self._downloaded_path = None
+
+        if path is None:
+            entry = _catalog()[0].get(self.name)
+            if entry is not None and _model_present(entry):
+                path = str(_model_root(entry))
+
+        if path is not None:
             self.paths = [path]
-            stt_moonshine_local_model_manager()._notify_added(self.name, path, self.lang)
+            stt_moonshine_local_model_manager()._notify_added(
+                self.name, path, self.lang)
         return False
 
     def _download_thread(self, cancelled):
         try:
-            get_model_for_language(self.lang, self.arch)
+            from moonshine_voice import get_model_for_language
+            path, _arch = get_model_for_language(self.lang, self.arch)
+            self._downloaded_path = str(path)
         except Exception as e:
             LOG_MSG.error("Moonshine download failed (%s): %s", self.name, e)
         if not cancelled.is_set():
@@ -131,7 +217,7 @@ class STTMoonshineModelDescription(GObject.Object):
     def start_downloading(self):
         if self._operation is not None:
             return
-        if not MOONSHINE_AVAILABLE:
+        if not moonshine_installed():
             LOG_MSG.error("cannot download, moonshine_voice not installed")
             return
 
@@ -186,16 +272,18 @@ class STTMoonshineLocalModelManager(GObject.Object):
         super().__init__()
         self._present = {}
         self._custom_paths = {}
-        self._scan_present_models()
+        self._scanned_models = 0
 
     def _scan_present_models(self):
-        if not MOONSHINE_AVAILABLE:
+        catalog, _locales = _catalog()
+        if not catalog or self._scanned_models == len(catalog):
             return
-        for model_name, lang, info in _all_model_infos():
-            info = dict(info, language=lang)
-            if _model_present(info):
-                self._present[model_name] = str(_expected_model_path(info))
-                LOG_MSG.debug("moonshine model present on disk (%s)", model_name)
+
+        self._scanned_models = len(catalog)
+        for name, entry in catalog.items():
+            if _model_present(entry):
+                self._present[name] = str(_model_root(entry))
+                LOG_MSG.debug("moonshine model present on disk (%s)", name)
 
     def _notify_added(self, model_name, path, lang=None):
         self._present[model_name] = path
@@ -206,44 +294,38 @@ class STTMoonshineLocalModelManager(GObject.Object):
         self.emit("removed", model_name, path)
 
     def path_available(self, model_path):
-        return model_path in self._present.values() or model_path in self._custom_paths
+        self._scan_present_models()
+        return (model_path in self._present.values()
+                or model_path in self._custom_paths)
 
     def get_best_path_for_model(self, model_name):
         if model_name is None:
             return None
+        self._scan_present_models()
         return self._present.get(model_name, None)
 
     def get_arch_for_model(self, model_name):
-        if not MOONSHINE_AVAILABLE:
-            return None
-        for name, lang, info in _all_model_infos():
-            if name == model_name:
-                return info["model_arch"]
-        return None
+        entry = _catalog()[0].get(model_name)
+        return entry["arch"] if entry is not None else None
 
     def get_lang_for_model(self, model_name):
-        if not MOONSHINE_AVAILABLE:
-            return None
-        for name, lang, info in _all_model_infos():
-            if name == model_name:
-                return lang
-        return None
+        entry = _catalog()[0].get(model_name)
+        return entry["lang"] if entry is not None else None
 
     @staticmethod
     def _infer_arch_for_folder(model_path):
         root = Path(model_path)
+        name = root.name.lower()
+
         if (root / "streaming_config.json").is_file():
-            name = root.name.lower()
-            for token, arch in (("medium", ModelArch.MEDIUM_STREAMING),
-                                ("small", ModelArch.SMALL_STREAMING),
-                                ("base", ModelArch.BASE_STREAMING),
-                                ("tiny", ModelArch.TINY_STREAMING)):
+            for token, arch in (("medium", 5), ("small", 4),
+                                ("base", 3), ("tiny", 2)):
                 if token in name:
                     return arch
-            return ModelArch.SMALL_STREAMING
-        if "tiny" in root.name.lower():
-            return ModelArch.TINY
-        return ModelArch.BASE
+            return 4
+        if "tiny" in name:
+            return 0
+        return 1
 
     def register_custom_model_path(self, model_path, locale_str):
         self._custom_paths[model_path] = locale_str
@@ -252,7 +334,8 @@ class STTMoonshineLocalModelManager(GObject.Object):
         self._custom_paths.pop(model_path, None)
 
     def custom_path_available(self, model_path):
-        return Path(model_path).is_dir() and (Path(model_path) / "tokenizer.bin").is_file()
+        root = Path(model_path)
+        return root.is_dir() and (root / "tokenizer.bin").is_file()
 
 
 _GLOBAL_LOCAL_MANAGER = None
@@ -276,35 +359,39 @@ class STTMoonshineOnlineModelManager(GObject.Object):
         super().__init__()
         self._models = {}
         self._locales_dict = {}
-        self._build_catalog()
 
         local = stt_moonshine_local_model_manager()
         local.connect("added", self._model_path_added_cb)
         local.connect("removed", self._model_path_removed_cb)
 
-    def _build_catalog(self):
-        if not MOONSHINE_AVAILABLE:
+    def _ensure_catalog(self):
+        catalog, locales = _catalog()
+        if not catalog or len(self._models) == len(catalog):
             return
-        for model_name, lang, info in _all_model_infos():
-            arch = info["model_arch"]
-            arch_str = _arch_to_string(arch)
+
+        local = stt_moonshine_local_model_manager()
+        self._models = {}
+        self._locales_dict = {}
+
+        for name, entry in catalog.items():
+            arch_name = entry["arch_name"]
 
             desc = STTMoonshineModelDescription()
-            desc.name = model_name
-            desc.lang = lang
-            desc.locale = lang
-            desc.arch = arch
-            desc.type = arch_str
-            desc.url = info["download_url"]
-            desc.size = _ARCH_SIZES.get(arch_str, "")
-            desc.quality = _ARCH_QUALITY.get(arch_str, "")
+            desc.name = name
+            desc.lang = entry["lang"]
+            desc.locale = entry["lang"]
+            desc.arch = entry["arch"]
+            desc.type = arch_name
+            desc.url = entry["download_url"]
+            desc.size = _ARCH_SIZES.get(arch_name, "")
+            desc.quality = _ARCH_QUALITY.get(arch_name, "")
 
-            path = stt_moonshine_local_model_manager().get_best_path_for_model(model_name)
+            path = local.get_best_path_for_model(name)
             if path is not None:
                 desc.paths = [path]
 
-            self._models[model_name] = desc
-            self._locales_dict.setdefault(lang, []).append(desc)
+            self._models[name] = desc
+            self._locales_dict.setdefault(entry["lang"], []).append(desc)
 
     def _model_path_added_cb(self, manager, model_name, model_path):
         desc = self._models.get(model_name, None)
@@ -322,15 +409,16 @@ class STTMoonshineOnlineModelManager(GObject.Object):
         self.emit("changed", desc)
 
     def get_model_description(self, model_name):
+        self._ensure_catalog()
         return self._models.get(model_name, None)
 
     def get_models_for_locale(self, locale_str):
+        self._ensure_catalog()
         lang = _lang_of_locale(locale_str)
         return list(self._locales_dict.get(lang, []))
 
     def supported_locales(self):
-        if not MOONSHINE_AVAILABLE:
-            return []
+        self._ensure_catalog()
         return list(self._locales_dict.keys())
 
 _GLOBAL_ONLINE_MANAGER = None

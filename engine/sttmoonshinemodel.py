@@ -4,10 +4,7 @@ import logging
 from pathlib import Path
 from gi.repository import GObject, Gio
 
-from sttmoonshinemodelmanagers import (
-    stt_moonshine_local_model_manager,
-    MOONSHINE_AVAILABLE,
-)
+from sttmoonshinemodelmanagers import stt_moonshine_local_model_manager
 
 LOG_MSG = logging.getLogger()
 
@@ -79,7 +76,7 @@ class STTMoonshineModel(GObject.Object):
                 return
             self._model_name = None
             self._model_path = model
-            self._model_arch = local._infer_arch_for_folder(model) if MOONSHINE_AVAILABLE else None
+            self._model_arch = local._infer_arch_for_folder(model)
             local.register_custom_model_path(model, self._locale_str)
             self._valid_model = local.custom_path_available(model)
         else:
