@@ -1,4 +1,6 @@
 import os
+import sys
+import importlib.machinery
 import logging
 import importlib
 import importlib.util
@@ -55,13 +57,13 @@ def _lang_of_locale(locale_str):
     return locale_str[0:2].lower()
 
 def moonshine_installed():
-    #True when moonshine-voice can be imported right now
     try:
-        if importlib.util.find_spec("moonshine_voice") is not None:
+        if importlib.machinery.PathFinder.find_spec("moonshine_voice", sys.path):
             return True
         importlib.invalidate_caches()
-        return importlib.util.find_spec("moonshine_voice") is not None
-    except (ImportError, ValueError, TypeError) as error:
+        return bool(importlib.machinery.PathFinder.find_spec("moonshine_voice",
+                                                             sys.path))
+    except (ImportError, ValueError, TypeError, AttributeError) as error:
         LOG_MSG.debug("cannot look up moonshine_voice (%s)", error)
         return False
 
@@ -110,11 +112,13 @@ def _build_catalog():
 def _catalog():
     global _CATALOG, _CATALOG_LOCALES
 
+    if not moonshine_installed():
+        _CATALOG = None
+        _CATALOG_LOCALES = None
+        return {}, {}
+
     if _CATALOG is not None:
         return _CATALOG, _CATALOG_LOCALES
-
-    if not moonshine_installed():
-        return {}, {}
 
     try:
         models, locales = _build_catalog()
@@ -366,7 +370,11 @@ class STTMoonshineOnlineModelManager(GObject.Object):
 
     def _ensure_catalog(self):
         catalog, locales = _catalog()
-        if not catalog or len(self._models) == len(catalog):
+        if not catalog:
+            self._models = {}
+            self._locales_dict = {}
+            return
+        if len(self._models) == len(catalog):
             return
 
         local = stt_moonshine_local_model_manager()

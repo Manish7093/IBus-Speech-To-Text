@@ -27,27 +27,23 @@ import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
-from gi.repository import Gtk, Gio, Adw
+from gi.repository import Gtk, Gio, Gdk, GObject, Adw
 
 from sttutils import *
 from sttshortcutrow import STTShortcutRow
 from sttshortcutdialog import STTShortcutDialog
 
 from sttcurrentlocale import stt_current_locale
-from sttvoskmodelmanagers import stt_vosk_online_model_manager
-from sttwhispermodelmanagers import stt_whisper_online_model_manager
-from sttonnxasrmodelmanagers import stt_onnxasr_online_model_manager
-from sttmoonshinemodelmanagers import stt_moonshine_online_model_manager
-from sttvoskmodel import STTVoskModel
-from sttwhispermodel import STTWhisperModel
-from sttonnxasrmodel import STTOnnxAsrModel
-from sttmoonshinemodel import STTMoonshineModel
 from sttmodelchooserdialog import STTModelChooserDialog
 
-from sttgstvosk import STTGstVosk
-from sttgstwhisper import STTGstWhisper
-from sttgstonnxasr import STTGstOnnxAsr
-from sttgstmoonshine import STTGstMoonshine
+from sttbackenddeps import (STT_DEFAULT_BACKEND,
+                            stt_backend_component,
+                            stt_backend_display_name,
+                            stt_backend_install_command,
+                            stt_backend_is_available,
+                            stt_backend_missing_dependencies,
+                            stt_backend_model_manager,
+                            stt_invalidate_availability_cache)
 
 LOG_MSG=logging.getLogger()
 
@@ -63,6 +59,11 @@ class STTConfigDialog (Adw.Window):
     whisper_check = Gtk.Template.Child()
     onnxasr_check = Gtk.Template.Child()
     moonshine_check = Gtk.Template.Child()
+
+    vosk_action_row      = Gtk.Template.Child()
+    whisper_action_row   = Gtk.Template.Child()
+    onnxasr_action_row   = Gtk.Template.Child()
+    moonshine_action_row = Gtk.Template.Child()
 
     tab_stack    = Gtk.Template.Child()
     tab_switcher = Gtk.Template.Child()
@@ -102,18 +103,20 @@ class STTConfigDialog (Adw.Window):
         self._utterances_dict = {}
         self._no_model_toast = None
         self._unsupported_locale_toast = None
+        self._missing_deps_toast = None
         self._model = None
         self._suppress_language_cb = False
+        self._suppress_engine_cb = False
         self._engine = None
 
         self._settings=Gio.Settings.new("org.freedesktop.ibus.engine.stt")
         self._settings.bind("preload", self.preload_model_switch, "active", Gio.SettingsBindFlags.DEFAULT)
         self._settings.bind("active-on-start", self.active_on_start_switch, "active", Gio.SettingsBindFlags.DEFAULT)
 
-        stt_vosk_online_model_manager()
-        stt_whisper_online_model_manager()
-        stt_onnxasr_online_model_manager()
-        stt_moonshine_online_model_manager()
+        self._backend_subtitles = {
+            backend: (row.get_subtitle() or "")
+            for backend, row in self._backend_action_rows().items()
+        }
 
         # Load current locale
         self._current_locale = stt_current_locale()
@@ -121,25 +124,11 @@ class STTConfigDialog (Adw.Window):
         self._override_file_changed_id=self._current_locale.connect("override-file-changed", self._override_file_changed_cb)
         self._override_file_written=False
 
-        backend = self._settings.get_string("backend")
-        self._suppress_engine_cb = True
-        if backend == "whisper":
-            self.whisper_check.set_active(True)
-        elif backend == "onnxasr":
-            self.onnxasr_check.set_active(True)
-        elif backend == "moonshine":
-            self.moonshine_check.set_active(True)
-        else:
-            self.vosk_check.set_active(True)
-        self._suppress_engine_cb = False
+        self._select_backend_button(self._backend())
 
         self._locale_list = []
         self._locale_names = Gtk.StringList()
-        self._populate_locale_list()
-        self._suppress_language_cb = True
-        self.language_dropdown.set_model(self._locale_names)
-        self._suppress_language_cb = False
-        self._select_current_locale_in_dropdown()
+        self._refresh_locale_dropdown()
 
         if self._current_locale.default_locale:
             self._suppress_language_cb = True
@@ -156,17 +145,81 @@ class STTConfigDialog (Adw.Window):
 
         self._update_voice_commands_visibility()
 
-        if self._model is None or not self._model.available():
-            self._engine_has_no_model()
-        elif self._valid_formatting_file == False:
-            self._unsupported_locale()
-
         self._toast_action=Gio.SimpleAction.new("manage_model", None)
+        self._install_action=Gio.SimpleAction.new("install_backend", None)
         action_group=Gio.SimpleActionGroup.new()
         action_group.insert(self._toast_action)
+        action_group.insert(self._install_action)
         self.insert_action_group("toast", action_group)
         self._toast_action.connect("activate",
                                    self._manage_model_action_activated)
+        self._install_action.connect("activate",
+                                     self._install_action_activated)
+
+        self._update_backend_rows()
+        self._refresh_status_messages()
+        self._backend_was_available = stt_backend_is_available(self._backend())
+        self.connect("notify::is-active", self._window_active_cb)
+
+    def _window_active_cb(self, *_args):
+        if not self.get_property("is-active"):
+            return
+
+        stt_invalidate_availability_cache()
+        available = stt_backend_is_available(self._backend())
+        if available == self._backend_was_available:
+            self._update_backend_rows()
+            return
+
+        self._backend_was_available = available
+        self._reload_backend()
+
+    def _backend(self):
+        backend = self._settings.get_string("backend")
+        if backend in ("", None):
+            return STT_DEFAULT_BACKEND
+        return backend
+
+    def _backend_check_buttons(self):
+        return {
+            "vosk":      self.vosk_check,
+            "whisper":   self.whisper_check,
+            "onnxasr":   self.onnxasr_check,
+            "moonshine": self.moonshine_check,
+        }
+
+    def _backend_action_rows(self):
+        return {
+            "vosk":      self.vosk_action_row,
+            "whisper":   self.whisper_action_row,
+            "onnxasr":   self.onnxasr_action_row,
+            "moonshine": self.moonshine_action_row,
+        }
+
+    def _backend_for_check_button(self, button):
+        for backend, check in self._backend_check_buttons().items():
+            if check == button:
+                return backend
+        return None
+
+    def _select_backend_button(self, backend):
+        button = self._backend_check_buttons().get(backend)
+        if button is None:
+            button = self.vosk_check
+
+        self._suppress_engine_cb = True
+        button.set_active(True)
+        self._suppress_engine_cb = False
+
+    def _update_backend_rows(self):
+        for backend, row in self._backend_action_rows().items():
+            subtitle = self._backend_subtitles.get(backend, "")
+            if stt_backend_is_available(backend):
+                row.set_subtitle(subtitle)
+            elif subtitle:
+                row.set_subtitle(_("%s · Not installed") % subtitle)
+            else:
+                row.set_subtitle(_("Not installed"))
 
 
     def _create_engine(self):
@@ -180,15 +233,23 @@ class STTConfigDialog (Adw.Window):
             self._engine.destroy()
             self._engine = None
 
-        backend = self._settings.get_string("backend")
-        if backend == "whisper":
-            self._engine = STTGstWhisper(current_locale=self._current_locale)
-        elif backend == "onnxasr":
-            self._engine = STTGstOnnxAsr(current_locale=self._current_locale)
-        elif backend == "moonshine":
-            self._engine = STTGstMoonshine(current_locale=self._current_locale)
-        else:
-            self._engine = STTGstVosk(current_locale=self._current_locale)
+        backend = self._backend()
+        if not stt_backend_is_available(backend):
+            LOG_MSG.warning("backend %s is missing its dependencies, "
+                            "no engine created", backend)
+            return
+
+        engine_class = stt_backend_component(backend, "engine")
+        if engine_class is None:
+            return
+
+        try:
+            self._engine = engine_class(current_locale=self._current_locale)
+        except Exception as error:
+            LOG_MSG.error("cannot create engine for backend %s (%s)",
+                          backend, error)
+            self._engine = None
+            return
 
         self._engine.connect("model-changed", self._engine_model_changed_cb)
         self._engine.preload()
@@ -204,11 +265,13 @@ class STTConfigDialog (Adw.Window):
                 and self._current_locale.locale not in self._locale_list):
             self._append_locale_option(self._current_locale.locale)
 
-        backend = self._settings.get_string("backend")
+        backend = self._backend()
         if backend == "moonshine":
-            supported = stt_moonshine_online_model_manager().supported_locales()
+            manager = stt_backend_model_manager("moonshine")
         else:
-            supported = stt_vosk_online_model_manager().supported_locales()
+            manager = stt_backend_model_manager("vosk")
+
+        supported = manager.supported_locales() if manager is not None else []
 
         _EXCLUDED = {"multilingual"}
 
@@ -217,6 +280,16 @@ class STTConfigDialog (Adw.Window):
                 continue
             if loc not in self._locale_list:
                 self._append_locale_option(loc)
+
+    def _refresh_locale_dropdown(self):
+        # Rebuild the language list and hand it to the dropdown.
+        self._populate_locale_list()
+
+        self._suppress_language_cb = True
+        self.language_dropdown.set_model(self._locale_names)
+        self._suppress_language_cb = False
+
+        self._select_current_locale_in_dropdown()
 
     def _append_locale_option(self, locale_str):
         if locale_str in (None, "", "None", "multilingual"):
@@ -253,23 +326,36 @@ class STTConfigDialog (Adw.Window):
                 self._model.disconnect_by_func(self._model_changed_cb)
             except TypeError:
                 pass
+            self._model = None
 
-        backend = self._settings.get_string("backend")
+        backend = self._backend()
         locale_str = self._current_locale.locale
 
-        if backend == "whisper":
-            self._model = STTWhisperModel(locale_str=locale_str)
-        elif backend == "onnxasr":
-            self._model = STTOnnxAsrModel(locale_str=locale_str)
-        elif backend == "moonshine":
-            self._model = STTMoonshineModel(locale_str=locale_str)
-        else:
-            self._model = STTVoskModel(locale_str=locale_str)
+        if stt_backend_is_available(backend):
+            model_class = stt_backend_component(backend, "model")
+            if model_class is not None:
+                try:
+                    self._model = model_class(locale_str=locale_str)
+                except Exception as error:
+                    LOG_MSG.error("cannot create model for backend %s (%s)",
+                                  backend, error)
 
-        self._model.connect("changed", self._model_changed_cb)
+        if self._model is not None:
+            self._model.connect("changed", self._model_changed_cb)
+
         self._update_model_info()
 
     def _update_model_info(self):
+        backend = self._backend()
+
+        if stt_backend_missing_dependencies(backend):
+            self.model_info_row.set_title(
+                _("%s is not installed") % stt_backend_display_name(backend))
+            self.model_info_row.set_subtitle(
+                stt_backend_install_command(backend))
+            self.change_model_button.set_label(_("Install…"))
+            return
+
         if self._model is None or not self._model.available():
             self.model_info_row.set_title(_("No model downloaded"))
             self.model_info_row.set_subtitle(
@@ -288,16 +374,8 @@ class STTConfigDialog (Adw.Window):
                 else _("Installed manually"))
             return
 
-        backend = self._settings.get_string("backend")
-        if backend == "whisper":
-            manager = stt_whisper_online_model_manager()
-        elif backend == "onnxasr":
-            manager = stt_onnxasr_online_model_manager()
-        elif backend == "moonshine":
-            manager = stt_moonshine_online_model_manager()
-        else:
-            manager = stt_vosk_online_model_manager()
-        desc = manager.get_model_description(model_name)
+        manager = stt_backend_model_manager(backend)
+        desc = manager.get_model_description(model_name) if manager else None
 
         self.model_info_row.set_title(model_name)
 
@@ -347,6 +425,9 @@ class STTConfigDialog (Adw.Window):
                     self.model_info_row.set_subtitle(size)
 
     def _auto_prompt_model_download(self):
+        if not stt_backend_is_available(self._backend()):
+            return
+
         if self._model is not None and not self._model.available():
             dialog = STTModelChooserDialog(model=self._model)
             dialog.set_transient_for(self)
@@ -355,9 +436,134 @@ class STTConfigDialog (Adw.Window):
     def _model_changed_cb(self, model):
         self._update_model_info()
 
+    def _copy_to_clipboard(self, text):
+        clipboard = self.get_clipboard()
+        if clipboard is None:
+            return
+
+        try:
+            clipboard.set_content(
+                Gdk.ContentProvider.new_for_value(GObject.Value(str, text)))
+        except Exception as error:
+            LOG_MSG.warning("cannot copy to clipboard (%s)", error)
+
+    def _install_dialog_body(self, backend, missing):
+        modules = "\n".join("    • %s" % dep.requirement for dep in missing)
+        return _("The %(backend)s backend needs python modules that are not "
+                 "installed on this system:\n\n"
+                 "%(modules)s\n\n"
+                 "Install them in a terminal with the following command, "
+                 "then press “Check Again”:\n\n"
+                 "    %(command)s") % {
+                     "backend": stt_backend_display_name(backend),
+                     "modules": modules,
+                     "command": stt_backend_install_command(backend)}
+
+    def _present_install_dialog(self, backend):
+        missing = stt_backend_missing_dependencies(backend, refresh=True)
+        if not missing:
+            return False
+
+        heading = _("%s Is Not Installed") % stt_backend_display_name(backend)
+        body = self._install_dialog_body(backend, missing)
+        command = stt_backend_install_command(backend)
+
+        # Adw.AlertDialog needs libadwaita 1.5, fall back on Adw.MessageDialog.
+        if hasattr(Adw, "AlertDialog"):
+            dialog = Adw.AlertDialog(heading=heading, body=body)
+            self._setup_install_dialog(dialog, backend, command)
+            dialog.present(self)
+        else:
+            dialog = Adw.MessageDialog(transient_for=self, modal=True,
+                                       heading=heading, body=body)
+            self._setup_install_dialog(dialog, backend, command)
+            dialog.present()
+
+        return True
+
+    def _setup_install_dialog(self, dialog, backend, command):
+        dialog.add_response("close", _("Close"))
+        dialog.add_response("copy", _("Copy Command"))
+        dialog.add_response("recheck", _("Check Again"))
+        dialog.set_response_appearance("recheck",
+                                       Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_default_response("recheck")
+        dialog.set_close_response("close")
+        dialog.connect("response", self._install_dialog_response_cb,
+                       backend, command)
+
+    def _install_dialog_response_cb(self, dialog, response, backend, command):
+        if response == "copy":
+            self._copy_to_clipboard(command)
+            self.toast_overlay.add_toast(
+                Adw.Toast(title=_("Command copied to the clipboard"),
+                          timeout=3))
+            return
+
+        if response != "recheck":
+            return
+
+        if not stt_backend_is_available(backend, refresh=True):
+            self.toast_overlay.add_toast(
+                Adw.Toast(title=_("%s is still not installed")
+                          % stt_backend_display_name(backend), timeout=5))
+            return
+
+        self._update_backend_rows()
+        if backend != self._backend():
+            self._apply_backend(backend)
+        else:
+            self._reload_backend()
+
+    def _install_action_activated(self, _action, _param):
+        self._present_install_dialog(self._backend())
+
+    def _backend_not_installed(self):
+        if self._missing_deps_toast != None:
+            return
+
+        if self._no_model_toast != None:
+            self._no_model_toast.dismiss()
+            self._no_model_toast = None
+        if self._unsupported_locale_toast != None:
+            self._unsupported_locale_toast.dismiss()
+            self._unsupported_locale_toast = None
+
+        self._missing_deps_toast = Adw.Toast(
+            title=_("%s is not installed")
+                  % stt_backend_display_name(self._backend()),
+            timeout=0,
+            button_label=_("How to Install"),
+            action_name="toast.install_backend")
+        self._missing_deps_toast.connect("dismissed", self._toast_dismissed)
+        self.toast_overlay.add_toast(self._missing_deps_toast)
+
+    def _refresh_status_messages(self):
+        if not stt_backend_is_available(self._backend()):
+            self._backend_not_installed()
+            return
+
+        if self._missing_deps_toast != None:
+            self._missing_deps_toast.dismiss()
+            self._missing_deps_toast = None
+
+        if (self._model is None or not self._model.available()
+                or self._engine is None or not self._engine.has_model()):
+            self._engine_has_no_model()
+            return
+
+        if self._no_model_toast != None:
+            self._no_model_toast.dismiss()
+            self._no_model_toast = None
+
+        if self._valid_formatting_file == False:
+            self._unsupported_locale()
+        elif self._unsupported_locale_toast != None:
+            self._unsupported_locale_toast.dismiss()
+            self._unsupported_locale_toast = None
 
     def _update_voice_commands_visibility(self):
-        is_vosk = (self._settings.get_string("backend") == "vosk")
+        is_vosk = (self._backend() == "vosk")
         self.vc_whisper_warning.set_visible(not is_vosk)
         self.voice_commands_group.set_visible(is_vosk)
 
@@ -372,40 +578,40 @@ class STTConfigDialog (Adw.Window):
         if getattr(self, '_suppress_engine_cb', False):
             return
 
-        if button == self.vosk_check:
-            backend = "vosk"
-        elif button == self.moonshine_check:
-            backend = "moonshine"
-        elif button == self.whisper_check:
-            backend = "whisper"
-        else:
-            backend = "onnxasr"
+        backend = self._backend_for_check_button(button)
+        if backend is None:
+            return
 
-        current = self._settings.get_string("backend")
+        current = self._backend()
         if backend == current:
             return
 
+        if not stt_backend_is_available(backend, refresh=True):
+            self._select_backend_button(current)
+            self._update_backend_rows()
+            self._present_install_dialog(backend)
+            return
+
+        self._apply_backend(backend)
+
+    def _apply_backend(self, backend):
         self._settings.set_string("backend", backend)
-        old_locale = self._current_locale.locale
-        self._populate_locale_list()
-        self._suppress_language_cb = True
-        self.language_dropdown.set_model(self._locale_names)
-        self._suppress_language_cb = False
+        self._select_backend_button(backend)
+        self._reload_backend(prompt_download=True)
 
-        if old_locale in self._locale_list:
-            self._suppress_language_cb = True
-            self.language_dropdown.set_selected(
-                self._locale_list.index(old_locale))
-            self._suppress_language_cb = False
-
+    def _reload_backend(self, prompt_download=False):
+        self._refresh_locale_dropdown()
         self._init_model()
-
         self._create_engine()
         self._update_voice_commands_visibility()
         self._empty_shortcut_page()
         self._load_utterances()
+        self._update_backend_rows()
+        self._refresh_status_messages()
 
-        if self._model is not None and not self._model.available():
+        if (prompt_download
+                and self._model is not None
+                and not self._model.available()):
             self._auto_prompt_model_download()
 
     @Gtk.Template.Callback()
@@ -441,6 +647,14 @@ class STTConfigDialog (Adw.Window):
 
     @Gtk.Template.Callback()
     def change_model_clicked_cb(self, *_args):
+        backend = self._backend()
+        if not stt_backend_is_available(backend, refresh=True):
+            self._present_install_dialog(backend)
+            return
+
+        if self._model is None:
+            self._reload_backend()
+
         if self._model != None:
             dialog = STTModelChooserDialog(model=self._model)
             dialog.set_transient_for(self)
@@ -458,11 +672,7 @@ class STTConfigDialog (Adw.Window):
         self._select_current_locale_in_dropdown()
 
         if self._current_locale.locale not in self._locale_list:
-            self._populate_locale_list()
-            self._suppress_language_cb = True
-            self.language_dropdown.set_model(self._locale_names)
-            self._suppress_language_cb = False
-            self._select_current_locale_in_dropdown()
+            self._refresh_locale_dropdown()
 
         self._init_model()
         self._load_current_locale()
@@ -541,20 +751,7 @@ class STTConfigDialog (Adw.Window):
     def _load_current_locale(self):
         self._empty_shortcut_page()
         self._load_utterances()
-
-        if not self._engine.has_model():
-            self._engine_has_no_model()
-            return
-
-        if self._no_model_toast != None:
-            self._no_model_toast.dismiss()
-            self._no_model_toast = None
-
-        if not self._valid_formatting_file:
-            self._unsupported_locale()
-        elif self._unsupported_locale_toast != None:
-            self._unsupported_locale_toast.dismiss()
-            self._unsupported_locale_toast = None
+        self._refresh_status_messages()
 
     def _apply_change(self):
         LOG_MSG.debug("override file being written")
@@ -608,6 +805,10 @@ class STTConfigDialog (Adw.Window):
         self._present_shortcut_dialog(row)
 
     def _present_shortcut_dialog(self, row):
+        if self._engine is None:
+            LOG_MSG.warning("no engine available, cannot edit shortcuts")
+            return
+
         dialog = STTShortcutDialog(
             row=row, engine=self._engine, transient_for=self)
         dialog.connect("response", self._shortcut_dialog_response_cb)
@@ -781,7 +982,9 @@ class STTConfigDialog (Adw.Window):
         self._auto_prompt_model_download()
 
     def _toast_dismissed(self, toast):
-        if toast == self._no_model_toast:
+        if toast == self._missing_deps_toast:
+            self._missing_deps_toast=None
+        elif toast == self._no_model_toast:
             self._no_model_toast=None
 
             # Display the other message if needed
@@ -792,11 +995,14 @@ class STTConfigDialog (Adw.Window):
 
     def _unsupported_locale(self):
         # Careful: we can have no formatting file but an overriding one !!
+        if self._missing_deps_toast != None:
+            return
+
         if self._no_model_toast != None:
             return
 
         # Formatting files only exist for vosk; other engines have no files to find
-        if self._settings.get_string("backend") != "vosk":
+        if self._backend() != "vosk":
             if self._unsupported_locale_toast is not None:
                 self._unsupported_locale_toast.dismiss()
                 self._unsupported_locale_toast = None
@@ -816,6 +1022,9 @@ class STTConfigDialog (Adw.Window):
         self.toast_overlay.add_toast(self._unsupported_locale_toast)
 
     def _engine_has_no_model(self):
+        if self._missing_deps_toast != None:
+            return
+
         if self._no_model_toast != None:
             return
 

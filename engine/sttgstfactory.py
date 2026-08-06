@@ -29,6 +29,10 @@ from sttgstwhisper import STTGstWhisper
 from sttgstonnxasr import STTGstOnnxAsr
 from sttgstmoonshine import STTGstMoonshine
 
+from sttbackenddeps import (stt_backend_display_name,
+                            stt_backend_install_command,
+                            stt_backend_is_available)
+
 LOG_MSG=logging.getLogger()
 
 class STTGstFactory(GObject.GObject):
@@ -45,11 +49,21 @@ class STTGstFactory(GObject.GObject):
         self.__update_preloaded_engine()
 
     def new_engine(self):
-        engine=None if self._current_engine is None else self._current_engine()
+        engine = None if self._current_engine is None else self._current_engine()
+        if engine is not None and engine.pipeline is None:
+            LOG_MSG.debug("cached engine was already destroyed, creating a new one")
+            engine = None
         if engine is None:
             LOG_MSG.debug("new engine")
             # Check backend setting
             backend = self.__settings.get_string("backend")
+            if not stt_backend_is_available(backend):
+                LOG_MSG.error("%s backend is selected but not installed. "
+                              "Install it with: %s",
+                              stt_backend_display_name(backend),
+                              stt_backend_install_command(backend))
+                LOG_MSG.error("falling back to the Vosk backend")
+                backend = "vosk"
             if backend == "whisper":
                 LOG_MSG.info("Using Whisper backend")
                 engine=STTGstWhisper()
