@@ -105,6 +105,8 @@ class STTGstWhisper(STTGstBase):
         self._process_queue   = queue.Queue()
         self._process_thread  = None
         self._stop_processing = False
+        self._draining        = False
+        self._drain_done      = threading.Event()
         self._use_partial_results = False
 
     def __del__(self):
@@ -116,8 +118,18 @@ class STTGstWhisper(STTGstBase):
 
     def destroy(self):
         self._stop_processing = True
+        while True:
+            try:
+                self._process_queue.get_nowait()
+                self._process_queue.task_done()
+            except queue.Empty:
+                break
+
+        thread_alive = False
         if self._process_thread is not None:
             self._process_thread.join(timeout=2.0)
+            thread_alive = self._process_thread.is_alive()
+            self._process_thread = None
 
         self._current_locale.disconnect(self._locale_id)
         self._locale_id = 0
@@ -127,7 +139,10 @@ class STTGstWhisper(STTGstBase):
             self._model_id = 0
 
         self._appsink = None
-        self._whisper = None
+
+        if thread_alive == False:
+            self._whisper = None
+
         self._vad     = None
         LOG_MSG.info("Whisper.destroy() called")
         super().destroy()
@@ -220,6 +235,10 @@ class STTGstWhisper(STTGstBase):
         self._set_model()
 
     def _on_new_sample(self, appsink):
+        if self._draining or self._stop_processing:
+            sample = appsink.emit("pull-sample")
+            return Gst.FlowReturn.OK
+
         sample = appsink.emit("pull-sample")
         if sample is None:
             return Gst.FlowReturn.OK
@@ -310,6 +329,8 @@ class STTGstWhisper(STTGstBase):
 
             if self._whisper is None:
                 self._process_queue.task_done()
+                if self._process_queue.unfinished_tasks == 0:
+                    self._drain_done.set()
                 continue
 
             try:
@@ -340,21 +361,30 @@ class STTGstWhisper(STTGstBase):
                 LOG_MSG.error("Whisper transcription error: %s", e, exc_info=True)
 
             self._process_queue.task_done()
+            if self._process_queue.unfinished_tasks == 0:
+                self._drain_done.set()
 
     def _emit_text(self, text):
         self.emit("text", text)
         return False
 
     def get_final_results(self):
-        if self._vad is not None:
-            remaining = self._vad.flush()
-            if remaining is not None:
-                self._enqueue_for_transcription(remaining, source='vad')
-        else:
-            self._flush_chunks_to_ring()
-            self._dispatch_to_worker()
+        self._draining = True
+        try:
+            if self._vad is not None:
+                remaining = self._vad.flush()
+                if remaining is not None:
+                    self._enqueue_for_transcription(remaining, source='vad')
+            else:
+                self._flush_chunks_to_ring()
+                self._dispatch_to_worker()
 
-        self._process_queue.join()
+            self._drain_done.clear()
+            if self._process_queue.unfinished_tasks == 0:
+                return
+            self._drain_done.wait(5.0)
+        finally:
+            self._draining = False
 
     def get_results(self):
         pass
