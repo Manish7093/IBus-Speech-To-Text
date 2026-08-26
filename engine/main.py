@@ -27,11 +27,9 @@ import gi
 
 gi.require_version('Gst', '1.0')
 gi.require_version('IBus', '1.0')
-gi.require_version('Adw', '1')
 
 from gi.repository import IBus
 from gi.repository import GLib
-from gi.repository import Adw
 from gi.repository import Gio
 from gi.repository import GObject
 from gi.repository import Gst
@@ -42,7 +40,7 @@ from sttgstfactory import stt_gst_factory_default
 
 LOG_MSG=logging.getLogger()
 
-class IMApplication(Adw.Application):
+class IMApplication(Gio.Application):
     __gtype_name__ = 'IMApplication'
 
     def __init__(self, **kwargs):
@@ -55,6 +53,9 @@ class IMApplication(Adw.Application):
         self.__bus=None
         self.__factory=None
         self.__component=None
+
+        self.__idle_timer=0
+        self.__input_sources_settings=None
 
     def do_handle_local_options(self, options):
         LOG_MSG.info("Local options parsing")
@@ -84,7 +85,7 @@ class IMApplication(Adw.Application):
         LOG_MSG.info("startup")
 
         # Is it the right way to chain up?
-        Adw.Application.do_startup(self)
+        Gio.Application.do_startup(self)
 
     def do_command_line(self, args):
         already_running=args.get_is_remote()
@@ -128,8 +129,18 @@ class IMApplication(Adw.Application):
         self.__bus = IBus.Bus()
         self.__bus.connect("disconnected", self.__bus_disconnected_cb)
 
-        self.__factory = STTEngineFactory(self.__bus)
+
+        self.__factory = STTEngineFactory(self.__bus,
+                                          activity_cb=self.__engine_activity_cb)
+
         self.__factory.add_engine("stt", GObject.type_from_name("STTEngine"))
+
+        schema_source=Gio.SettingsSchemaSource.get_default()
+        if schema_source is not None and \
+           schema_source.lookup("org.gnome.desktop.input-sources", True) is not None:
+            self.__input_sources_settings=Gio.Settings.new("org.gnome.desktop.input-sources")
+            self.__input_sources_settings.connect("changed::sources",
+                                                  self.__input_sources_changed_cb)
 
         if self.__exec_by_ibus:
             self.__bus.request_name("org.freedesktop.IBus.STT", 0)
@@ -138,12 +149,71 @@ class IMApplication(Adw.Application):
             self.__component = IBus.Component.new_from_file(xml_path)
             self.__bus.register_component (self.__component)
 
+        self.__engine_activity_cb(self.__factory.engine_count)
+
         # Start a loop
         self.hold()
 
     def __bus_disconnected_cb(self, bus):
         LOG_MSG.info("bus disconnect")
         self.release()
+
+    def __stt_in_input_sources(self):
+        if self.__input_sources_settings is None:
+            return None
+
+        sources=self.__input_sources_settings.get_value("sources").unpack()
+        return ("ibus", "stt") in sources
+
+    def __engine_activity_cb(self, engine_count):
+        if engine_count > 0:
+            if self.__idle_timer != 0:
+                LOG_MSG.debug("engine created, cancelling idle-exit timer")
+                GLib.source_remove(self.__idle_timer)
+                self.__idle_timer=0
+            return
+
+        if self.__stt_in_input_sources() is False:
+            self.__idle_exit_now()
+            return
+
+        if self.__idle_timer == 0:
+            LOG_MSG.info("no engine left alive, idle-exit in %is", 10)
+            self.__idle_timer=GLib.timeout_add_seconds(10, self.__idle_exit_cb)
+
+    def __input_sources_changed_cb(self, settings, key):
+        if self.__stt_in_input_sources() is not False:
+            return
+
+        LOG_MSG.info("STT removed from input sources, unloading model")
+        stt_gst_factory_default().drop_preload()
+
+        if self.__factory is not None and \
+           self.__factory.engine_count == 0:
+            self.__idle_exit_now()
+
+    def __idle_exit_now(self):
+        if self.__idle_timer != 0:
+            GLib.source_remove(self.__idle_timer)
+            self.__idle_timer=0
+        self.__idle_exit_cb()
+
+    def __idle_exit_cb(self):
+        self.__idle_timer=0
+        gst_factory=stt_gst_factory_default()
+        in_sources=self.__stt_in_input_sources()
+
+        if in_sources is False:
+            LOG_MSG.info("STT not among input sources, exiting")
+            gst_factory.drop_preload()
+            self.release()
+        elif gst_factory.has_preload == False:
+            LOG_MSG.info("idle with no preloaded engine, exiting")
+            self.release()
+        else:
+            LOG_MSG.info("staying alive to keep the preloaded engine warm")
+
+        return GLib.SOURCE_REMOVE
 
 if __name__ == "__main__":
     LOG_MSG=logging.getLogger()
@@ -163,7 +233,6 @@ if __name__ == "__main__":
     locale.textdomain('ibus-stt')
 
     Gst.init(sys.argv)
-    Adw.init()
 
     app = IMApplication(application_id=stt_utils_get_app_id(),
                         flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE|

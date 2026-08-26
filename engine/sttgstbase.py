@@ -77,6 +77,12 @@ class STTGstBase (GObject.Object):
         self._pipeline.set_state(Gst.State.NULL)
         self._pipeline=None
 
+        try:
+            import ctypes
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except (OSError, AttributeError):
+            pass
+
         LOG_MSG.info("GstBase.destroy() called")
 
     def hold(self):

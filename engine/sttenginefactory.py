@@ -30,12 +30,18 @@ LOG_MSG=logging.getLogger()
 class STTEngineFactory(IBus.Factory):
     __gtype_name__ = 'STTEngineFactory'
 
-    def __init__(self, bus):
+    def __init__(self, bus, activity_cb=None):
         self._bus=bus
         self._current_engine=None
+        self._engine_count=0
+        self._activity_cb=activity_cb
         super().__init__(object_path=IBus.PATH_FACTORY,
                          connection=bus.get_connection())
         # Stop there, we create this object to control engine creation
+
+    @property
+    def engine_count(self):
+        return self._engine_count
 
     def do_create_engine(self, engine_name):
         LOG_MSG.debug("New engine requested %s", engine_name)
@@ -44,8 +50,20 @@ class STTEngineFactory(IBus.Factory):
 
         engine=STTEngine(self._bus, "/org/freedesktop/IBus/STT")
         self._current_engine=engine
-        LOG_MSG.debug("Creating new engine")
+
+        self._engine_count += 1
+        engine.connect("destroy", self.__engine_destroyed_cb)
+        LOG_MSG.debug("Creating new engine (%i alive)", self._engine_count)
+        if self._activity_cb is not None:
+            self._activity_cb(self._engine_count)
+
         return engine
+
+    def __engine_destroyed_cb(self, engine):
+        self._engine_count=max(0, self._engine_count - 1)
+        LOG_MSG.debug("Engine destroyed (%i alive)", self._engine_count)
+        if self._activity_cb is not None:
+            self._activity_cb(self._engine_count)
 
     def do_destroy(self):
         self._current_engine=None
