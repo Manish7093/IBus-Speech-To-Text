@@ -24,11 +24,6 @@ from gi.repository import Gio
 
 from sttutils import *
 
-from sttgstvosk import STTGstVosk
-from sttgstwhisper import STTGstWhisper
-from sttgstonnxasr import STTGstOnnxAsr
-from sttgstmoonshine import STTGstMoonshine
-
 from sttbackenddeps import (stt_backend_display_name,
                             stt_backend_install_command,
                             stt_backend_is_available)
@@ -66,15 +61,19 @@ class STTGstFactory(GObject.GObject):
                 backend = "vosk"
             if backend == "whisper":
                 LOG_MSG.info("Using Whisper backend")
+                from sttgstwhisper import STTGstWhisper
                 engine=STTGstWhisper()
             elif backend == "onnxasr":
                 LOG_MSG.info("Using onnx-asr backend")
+                from sttgstonnxasr import STTGstOnnxAsr
                 engine=STTGstOnnxAsr()
             elif backend == "moonshine":
                 LOG_MSG.info("Using Moonshine backend")
+                from sttgstmoonshine import STTGstMoonshine
                 engine=STTGstMoonshine()
             else:
                 LOG_MSG.info("Using Vosk backend")
+                from sttgstvosk import STTGstVosk
                 engine=STTGstVosk()
             self._current_engine=weakref.ref(engine)
         else:
@@ -100,6 +99,18 @@ class STTGstFactory(GObject.GObject):
 
     def __preload_changed(self, settings, key):
         self.__update_preloaded_engine()
+
+    @property
+    def has_preload(self):
+        return self._preload is not None
+
+    def drop_preload(self):
+        if self._preload is None:
+            return
+
+        LOG_MSG.info("dropping preloaded engine")
+        self._preload.release()
+        self._preload=None
 
 _GLOBAL_FACTORY = None
 
