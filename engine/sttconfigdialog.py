@@ -141,7 +141,6 @@ class STTConfigDialog (Adw.Window):
         # This updates _valid_formatting_file and _valid_override_file
         self._load_utterances()
 
-        self._create_engine()
 
         self._update_voice_commands_visibility()
 
@@ -221,27 +220,29 @@ class STTConfigDialog (Adw.Window):
             else:
                 row.set_subtitle(_("Not installed"))
 
+    def _destroy_engine(self):
+        if self._engine is None:
+            return
 
-    def _create_engine(self):
-        # Instantiate the recognition engine matching the current backend.
-        # Tear down existing engine if present
+        try:
+            self._engine.disconnect_by_func(self._engine_model_changed_cb)
+        except TypeError:
+            pass
+        self._engine.destroy()
+        self._engine = None
+
+    def _ensure_engine(self):
         if self._engine is not None:
-            try:
-                self._engine.disconnect_by_func(self._engine_model_changed_cb)
-            except TypeError:
-                pass
-            self._engine.destroy()
-            self._engine = None
-
+            return self._engine
         backend = self._backend()
         if not stt_backend_is_available(backend):
             LOG_MSG.warning("backend %s is missing its dependencies, "
                             "no engine created", backend)
-            return
+            return None
 
         engine_class = stt_backend_component(backend, "engine")
         if engine_class is None:
-            return
+            return None
 
         try:
             self._engine = engine_class(current_locale=self._current_locale)
@@ -249,12 +250,13 @@ class STTConfigDialog (Adw.Window):
             LOG_MSG.error("cannot create engine for backend %s (%s)",
                           backend, error)
             self._engine = None
-            return
+            return None
 
         self._engine.connect("model-changed", self._engine_model_changed_cb)
         self._engine.preload()
         LOG_MSG.debug("engine created (backend=%s), has_model=%s",
                       backend, self._engine.has_model())
+        return self._engine
 
     def _populate_locale_list(self):
         self._locale_list.clear()
@@ -547,8 +549,7 @@ class STTConfigDialog (Adw.Window):
             self._missing_deps_toast.dismiss()
             self._missing_deps_toast = None
 
-        if (self._model is None or not self._model.available()
-                or self._engine is None or not self._engine.has_model()):
+        if self._model is None or not self._model.available():
             self._engine_has_no_model()
             return
 
@@ -602,7 +603,7 @@ class STTConfigDialog (Adw.Window):
     def _reload_backend(self, prompt_download=False):
         self._refresh_locale_dropdown()
         self._init_model()
-        self._create_engine()
+        self._destroy_engine()
         self._update_voice_commands_visibility()
         self._empty_shortcut_page()
         self._load_utterances()
@@ -805,12 +806,13 @@ class STTConfigDialog (Adw.Window):
         self._present_shortcut_dialog(row)
 
     def _present_shortcut_dialog(self, row):
-        if self._engine is None:
+        engine = self._ensure_engine()
+        if engine is None:
             LOG_MSG.warning("no engine available, cannot edit shortcuts")
             return
 
         dialog = STTShortcutDialog(
-            row=row, engine=self._engine, transient_for=self)
+            row=row, engine=engine, transient_for=self)
         dialog.connect("response", self._shortcut_dialog_response_cb)
         dialog.present()
 
