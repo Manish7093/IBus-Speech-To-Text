@@ -34,6 +34,10 @@ class STTOnnxAsrModel(GObject.Object):
         super().__init__()
 
         self._locale_str = locale_str
+        self._settings_id = 0
+        self._model_added_id = 0
+        self._model_removed_id = 0
+
         self._settings = Gio.Settings.new("org.freedesktop.ibus.engine.stt")
         self._settings_id = self._settings.connect("changed::onnxasr-models", self._models_changed)
 
@@ -47,11 +51,25 @@ class STTOnnxAsrModel(GObject.Object):
         self._model_added_id = stt_onnxasr_local_model_manager().connect("added", self._model_added_cb)
         self._model_removed_id = stt_onnxasr_local_model_manager().connect("removed", self._model_removed_cb)
 
-    def __del__(self):
-        stt_onnxasr_local_model_manager().disconnect(self._model_added_id)
-        stt_onnxasr_local_model_manager().disconnect(self._model_removed_id)
+    def destroy(self):
+        if self._model_added_id != 0:
+            stt_onnxasr_local_model_manager().disconnect(self._model_added_id)
+            self._model_added_id = 0
+
+        if self._model_removed_id != 0:
+            stt_onnxasr_local_model_manager().disconnect(self._model_removed_id)
+            self._model_removed_id = 0
+
+        if self._settings_id != 0:
+            self._settings.disconnect(self._settings_id)
+            self._settings_id = 0
+
         if self._model_name is None and self._model_path is not None:
             stt_onnxasr_local_model_manager().unregister_custom_model_path(self._model_path)
+            self._model_path = None
+
+    def __del__(self):
+        self.destroy()
 
     def _get_model_from_settings(self):
         models_json_string = self._settings.get_string("onnxasr-models")
@@ -165,6 +183,8 @@ class STTOnnxAsrModel(GObject.Object):
         models_dict[self._locale_str] = model_name
         models_json_string = json.dumps(models_dict)
 
-        self._settings.disconnect(self._settings_id)
+        if self._settings_id != 0:
+            self._settings.disconnect(self._settings_id)
+            self._settings_id = 0
         self._settings.set_string("onnxasr-models", models_json_string)
         self._settings_id = self._settings.connect("changed::onnxasr-models", self._models_changed)

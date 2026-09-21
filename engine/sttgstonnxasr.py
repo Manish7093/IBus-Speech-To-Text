@@ -20,6 +20,7 @@ import logging
 import threading
 import queue
 import numpy as np
+import gc
 
 from gi.repository import Gst, GLib
 from sttutils import *
@@ -28,14 +29,6 @@ from sttcurrentlocale import stt_current_locale
 from sttonnxasrmodel import STTOnnxAsrModel
 
 LOG_MSG = logging.getLogger()
-
-try:
-    import onnx_asr
-    ONNXASR_AVAILABLE = True
-except ImportError:
-    LOG_MSG.warning("onnx-asr not available. Install with: pip install onnx-asr")
-    ONNXASR_AVAILABLE = False
-
 
 class STTGstOnnxAsr(STTGstBase):
     __gtype_name__ = 'STTGstOnnxAsr'
@@ -80,6 +73,7 @@ class STTGstOnnxAsr(STTGstBase):
         self._model_id = 0
         self._model = None
         self._recognizer = None
+        self._load_generation = 0
         self._set_model()
 
         self._audio_buffer = []
@@ -105,6 +99,15 @@ class STTGstOnnxAsr(STTGstBase):
 
     def destroy(self):
         self._stop_processing = True
+        self._load_generation += 1
+
+        while True:
+            try:
+                self._process_queue.get_nowait()
+                self._process_queue.task_done()
+            except queue.Empty:
+                break
+
         if self._process_thread is not None:
             self._process_thread.join(timeout=2.0)
             self._process_thread = None
@@ -116,34 +119,52 @@ class STTGstOnnxAsr(STTGstBase):
             self._model.disconnect(self._model_id)
             self._model_id = 0
 
+        if self._model is not None:
+            self._model.destroy()
+            self._model = None
+
         self._appsink = None
         self._recognizer = None
 
         LOG_MSG.info("OnnxAsr.destroy() called")
+        gc.collect()
         super().destroy()
 
-    def _load_onnxasr_model(self, model_name):
-        """Load onnx-asr model."""
-        if not ONNXASR_AVAILABLE:
-            LOG_MSG.error("onnx-asr not available")
-            return False
-
+    def _load_model_thread(self, model_name, restore_state, generation):
+        recognizer = None
         try:
+            import onnx_asr
+
             LOG_MSG.info("Loading onnx-asr model: %s", model_name)
-            self._recognizer = onnx_asr.load_model(model_name)
+            recognizer = onnx_asr.load_model(model_name)
             LOG_MSG.info("onnx-asr model loaded successfully")
-            return True
 
         except Exception as e:
             LOG_MSG.error("Failed to load onnx-asr model: %s", e)
-            self._recognizer = None
+
+        GLib.idle_add(self._model_load_done_cb,
+                      recognizer, restore_state, generation)
+
+    def _model_load_done_cb(self, recognizer, restore_state, generation):
+        if self.pipeline is None or generation != self._load_generation:
+            LOG_MSG.debug("discarding stale model load")
             return False
+        self._recognizer = recognizer
+
+        if recognizer is not None and restore_state > Gst.State.READY:
+            ret, current, pending = self.pipeline.get_state(0)
+            if current == Gst.State.READY:
+                self.pipeline.set_state(restore_state)
+
+        self.emit("model-changed")
+        return False
 
     def _set_model_path(self):
         if self._model is None or self._model.available() is False:
             LOG_MSG.info("model not available (%s - %s)",
                         self._model.get_name() if self._model else "None",
                         self._model.get_path() if self._model else "None")
+            self._load_generation += 1
             self._recognizer = None
             self.emit("model-changed")
             return
@@ -155,13 +176,11 @@ class STTGstOnnxAsr(STTGstBase):
         if state >= Gst.State.READY:
             self.pipeline.set_state(Gst.State.READY)
 
-        success = self._load_onnxasr_model(model_name)
-
-        if state >= Gst.State.READY:
-            self.pipeline.set_state(state)
-
-        if success:
-            self.emit("model-changed")
+        self._load_generation += 1
+        self._recognizer = None
+        threading.Thread(target=self._load_model_thread,
+                         args=(model_name, state, self._load_generation),
+                         daemon=True).start()
 
     def _model_changed(self, model):
         self._set_model_path()
@@ -174,6 +193,9 @@ class STTGstOnnxAsr(STTGstBase):
         if self._model_id != 0:
             self._model.disconnect(self._model_id)
             self._model_id = 0
+
+        if self._model is not None:
+            self._model.destroy()
 
         self._model = STTOnnxAsrModel(locale_str=self._current_locale.locale)
         self._model_id = self._model.connect("changed", self._model_changed)
@@ -268,6 +290,7 @@ class STTGstOnnxAsr(STTGstBase):
                 LOG_MSG.error("onnx-asr transcription error: %s", e, exc_info=True)
 
             self._process_queue.task_done()
+            recognizer = None
 
     def _emit_text(self, text):
         self.emit("text", text)
