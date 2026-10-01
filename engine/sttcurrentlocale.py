@@ -118,11 +118,16 @@ class STTCurrentLocale(GObject.Object):
         if json_data is not None:
             return json_data
 
-        if len(self._locale) <= 2:
-            return None
+        language = self._locale.split("_")[0]
+        formatting_dir = Path(stt_utils_get_system_data_path(), "formatting")
+        candidates = [] if language == self._locale else [formatting_dir / (language + ".json")]
+        candidates += sorted(formatting_dir.glob(language + "_*.json"))
+        for json_path in candidates:
+            json_data = self._load_json_file(json_path)
+            if json_data is not None:
+                return json_data
 
-        json_path=Path(stt_utils_get_system_data_path(), "formatting", self._locale[:2] + ".json")
-        return self._load_json_file(json_path)
+        return None
 
     def formatting_file_path(self, formatting_file_path):
         LOG_MSG.debug("set formatting file path from %s to %s",
