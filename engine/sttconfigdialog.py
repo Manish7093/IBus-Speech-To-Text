@@ -28,7 +28,7 @@ gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
 from gi.repository import Gtk, Gio, Gdk, GObject, Adw
-
+from pathlib import Path
 from sttutils import *
 from sttshortcutrow import STTShortcutRow
 from sttshortcutdialog import STTShortcutDialog
@@ -77,7 +77,8 @@ class STTConfigDialog (Adw.Window):
     preload_model_switch   = Gtk.Template.Child()
     active_on_start_switch = Gtk.Template.Child()
 
-    vc_whisper_warning   = Gtk.Template.Child()
+    vc_unavailable_box   = Gtk.Template.Child()
+    vc_unavailable_label = Gtk.Template.Child()
     voice_commands_group = Gtk.Template.Child()
 
     commands_row    = Gtk.Template.Child()
@@ -140,9 +141,6 @@ class STTConfigDialog (Adw.Window):
 
         # This updates _valid_formatting_file and _valid_override_file
         self._load_utterances()
-
-
-        self._update_voice_commands_visibility()
 
         self._toast_action=Gio.SimpleAction.new("manage_model", None)
         self._install_action=Gio.SimpleAction.new("install_backend", None)
@@ -564,13 +562,31 @@ class STTConfigDialog (Adw.Window):
             self._unsupported_locale_toast = None
 
     def _update_voice_commands_visibility(self):
-        is_vosk = (self._backend() == "vosk")
-        self.vc_whisper_warning.set_visible(not is_vosk)
-        self.voice_commands_group.set_visible(is_vosk)
+        available = self._valid_formatting_file or self._valid_override_file
 
-        if (not is_vosk
-                and self.tab_stack.get_visible_child_name() == "voice_commands"):
-            self.tab_stack.set_visible_child_name("setup")
+        self.vc_unavailable_box.set_visible(not available)
+        self.voice_commands_group.set_sensitive(available)
+
+        if not available:
+            self.vc_unavailable_label.set_label(
+                _("Voice commands are not available for this language. "
+                  "They are currently available for: %s.\n\n"
+                  "You can also load your own formatting file for this "
+                  "language using the button below.")
+                % ", ".join(self._voice_command_language_names()))
+            self.main_stack.set_visible_child_name("main")
+
+    def _voice_command_language_names(self):
+        system_locale_str = locale.getlocale()[0]
+        formatting_dir = Path(stt_utils_get_system_data_path(), "formatting")
+        names = []
+        for json_path in sorted(formatting_dir.glob("*.json")):
+            try:
+                names.append(Locale.parse(json_path.stem)
+                             .get_display_name(system_locale_str))
+            except (UnknownLocaleError, ValueError):
+                names.append(json_path.stem)
+        return names
 
     @Gtk.Template.Callback()
     def engine_toggled_cb(self, button):
@@ -604,7 +620,6 @@ class STTConfigDialog (Adw.Window):
         self._refresh_locale_dropdown()
         self._init_model()
         self._destroy_engine()
-        self._update_voice_commands_visibility()
         self._empty_shortcut_page()
         self._load_utterances()
         self._update_backend_rows()
@@ -979,6 +994,7 @@ class STTConfigDialog (Adw.Window):
             self._empty_shortcut_page()
 
         self._load_overriding_file()
+        self._update_voice_commands_visibility()
 
     def _manage_model_action_activated(self, _action, _param):
         self._auto_prompt_model_download()
@@ -1001,13 +1017,6 @@ class STTConfigDialog (Adw.Window):
             return
 
         if self._no_model_toast != None:
-            return
-
-        # Formatting files only exist for vosk; other engines have no files to find
-        if self._backend() != "vosk":
-            if self._unsupported_locale_toast is not None:
-                self._unsupported_locale_toast.dismiss()
-                self._unsupported_locale_toast = None
             return
 
         if self._unsupported_locale_toast != None:

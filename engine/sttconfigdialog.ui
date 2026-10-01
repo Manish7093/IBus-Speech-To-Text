@@ -46,7 +46,7 @@
                                     <child>
                                       <object class="AdwActionRow" id="vosk_action_row">
                                         <property name="title">Vosk</property>
-                                        <property name="subtitle" translatable="yes">Fast, offline, voice commands</property>
+                                        <property name="subtitle" translatable="yes">Fast, offline</property>
                                         <property name="activatable-widget">vosk_check</property>
                                         <child type="prefix">
                                           <object class="GtkCheckButton" id="vosk_check">
@@ -59,7 +59,7 @@
                                     <child>
                                       <object class="AdwActionRow" id="whisper_action_row">
                                         <property name="title">Whisper</property>
-                                        <property name="subtitle" translatable="yes">More accurate, no voice commands</property>
+                                        <property name="subtitle" translatable="yes">More accurate</property>
                                         <property name="activatable-widget">whisper_check</property>
                                         <child type="prefix">
                                           <object class="GtkCheckButton" id="whisper_check">
@@ -73,7 +73,7 @@
                                     <child>
                                       <object class="AdwActionRow" id="onnxasr_action_row">
                                         <property name="title">onnx-asr</property>
-                                        <property name="subtitle" translatable="yes">ONNX runtime, no voice commands</property>
+                                        <property name="subtitle" translatable="yes">ONNX runtime</property>
                                         <property name="activatable-widget">onnxasr_check</property>
                                         <child type="prefix">
                                           <object class="GtkCheckButton" id="onnxasr_check">
@@ -87,7 +87,7 @@
                                     <child>
                                       <object class="AdwActionRow" id="moonshine_action_row">
                                         <property name="title">Moonshine</property>
-                                        <property name="subtitle" translatable="yes">Low-latency streaming, no voice commands</property>
+                                        <property name="subtitle" translatable="yes">Low-latency streaming</property>
                                         <property name="activatable-widget">moonshine_check</property>
                                         <child type="prefix">
                                           <object class="GtkCheckButton" id="moonshine_check">
@@ -215,15 +215,13 @@
                                             <property name="orientation">vertical</property>
                                             <property name="spacing">12</property>
 
-
                                             <child>
-                                              <object class="GtkBox" id="vc_whisper_warning">
+                                              <object class="GtkBox" id="vc_unavailable_box">
                                                 <property name="visible">False</property>
                                                 <property name="orientation">vertical</property>
                                                 <property name="spacing">12</property>
-                                                <property name="valign">center</property>
-                                                <property name="vexpand">True</property>
-                                                <property name="margin-top">40</property>
+                                                <property name="margin-top">24</property>
+                                                <property name="margin-bottom">12</property>
                                                 <child>
                                                   <object class="GtkImage">
                                                     <property name="icon-name">dialog-information-symbolic</property>
@@ -244,16 +242,25 @@
                                                   </object>
                                                 </child>
                                                 <child>
-                                                  <object class="GtkLabel">
-                                                    <property name="label" translatable="yes">Voice commands require the Vosk engine. Switch to Vosk in the Setup tab to use them.</property>
+                                                  <object class="GtkLabel" id="vc_unavailable_label">
                                                     <property name="halign">center</property>
                                                     <property name="justify">center</property>
                                                     <property name="wrap">True</property>
-                                                    <property name="max-width-chars">36</property>
+                                                    <property name="max-width-chars">40</property>
                                                     <property name="margin-start">24</property>
                                                     <property name="margin-end">24</property>
                                                     <style>
                                                       <class name="dim-label"/>
+                                                    </style>
+                                                  </object>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkButton">
+                                                    <property name="label" translatable="yes">Load Formatting File…</property>
+                                                    <property name="halign">center</property>
+                                                    <signal name="clicked" handler="new_formatting_file_button_clicked_cb"/>
+                                                    <style>
+                                                      <class name="pill"/>
                                                     </style>
                                                   </object>
                                                 </child>

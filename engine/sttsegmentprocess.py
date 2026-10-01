@@ -28,6 +28,8 @@ from sttwordstodigits import STTWordsToDigits
 
 LOG_MSG=logging.getLogger()
 
+_LOOKUP_STRIP = ".,!?;:\"()[]{}|"
+
 class STTSegment():
     def __init__(self, segment=None):
         if segment is not None:
@@ -331,17 +333,18 @@ class STTSegmentProcess(GObject.GObject, STTParserInterface):
 
         LOG_MSG.debug("left text (%s)", self._text_left)
         words = utterance.split()
+        lookup = [word.strip(_LOOKUP_STRIP).lower() for word in words]
         max_words = len(words)
         word_i = 0
 
         while word_i < max_words:
-            new_word_i = self._parser.parse(self, words, word_i)
+            new_word_i = self._parser.parse(self, lookup, word_i)
             if new_word_i != word_i:
                 word_i = new_word_i
                 continue
 
             if self._context._use_digits == True:
-                new_word_i = self._context._w2n.parse(self, words, word_i)
+                new_word_i = self._context._w2n.parse(self, lookup, word_i)
                 if new_word_i != word_i:
                     word_i = new_word_i
                     continue
