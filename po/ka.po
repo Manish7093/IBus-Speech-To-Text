@@ -1,0 +1,412 @@
+# Georgian translation for ibus-stt.
+# Copyright (C) 2026 ibus-stt's authors.
+# This file is distributed under the same license as the ibus-stt package.
+# Ekaterine Papava <papava.e@gtu.ge>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ibus-stt\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-07-23 20:08+0200\n"
+"PO-Revision-Date: 2026-09-17 14:58+0200\n"
+"Last-Translator: Ekaterine Papava <papava.e@gtu.ge>\n"
+"Language-Team: Georgian <(nothing)>\n"
+"Language: ka\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.9\n"
+
+#: engine/main.py:177
+msgid "Executed by IBus"
+msgstr "შესრულებულია IBus-ის მიერ"
+
+#: engine/main.py:184
+msgid "Daemonize"
+msgstr "ფონზე გაშვება"
+
+#: engine/main.py:191
+msgid "Debug"
+msgstr "გამართვა"
+
+#: engine/sttengine.py:70 engine/sttengine.py:203
+msgid "Recognition off"
+msgstr "ამოცნობა გამორთულია"
+
+#: engine/sttengine.py:74 engine/sttengine.py:215
+msgid "Toggle speech recognition"
+msgstr "საუბრის ამოცნობის გადართვა"
+
+#: engine/sttengine.py:78 engine/sttengine.py:226
+msgid "Dictate"
+msgstr "კარნახი"
+
+#: engine/sttengine.py:81 engine/sttengine.py:230
+msgid "Toggle dictation mode"
+msgstr "კარნახის რეჟიმის გადართვა"
+
+#: engine/sttengine.py:83 engine/sttengine.py:234
+msgid "Dictate (no formatting)"
+msgstr "კარნახი (დაფორმატების გარეშე)"
+
+#: engine/sttengine.py:86 engine/sttengine.py:237
+msgid "Toggle dictation mode with no automatic formatting"
+msgstr "კარნახის რეჟიმის გადართვა ავტომატური დაფორმატების გარეშე"
+
+#: engine/sttengine.py:88 engine/sttengine.py:241
+msgid "Spell"
+msgstr "მართლწერა"
+
+#: engine/sttengine.py:91 engine/sttengine.py:245
+msgid "Toggle spelling mode"
+msgstr "მართლწერის რეჟიმის გადართვა"
+
+#: engine/sttengine.py:93
+msgid "Recognition mode"
+msgstr "ამოცნობის რეჟიმი"
+
+#: engine/sttengine.py:100 engine/sttengine.py:250
+msgid "Use digits"
+msgstr "ციფრების გამოყენება"
+
+#: engine/sttengine.py:104 engine/sttengine.py:254
+msgid "Toggle the use of digits"
+msgstr "ციფრების გამოყენების გადართვა"
+
+#: engine/sttengine.py:107
+msgid "Settings"
+msgstr "მორგება"
+
+#: engine/sttengine.py:110
+msgid "Configure IBus STT"
+msgstr "IBus STT-ის მორგება"
+
+#: engine/sttengine.py:112 engine/sttengine.py:334
+msgid "About IBus Speech To Text"
+msgstr "IBus Speech To Text-ის შესახებ"
+
+#: engine/sttengine.py:115
+msgid "Learn more about IBus STT"
+msgstr "გაიგეთ მეტი IBus STT-ის შესახებ"
+
+#: engine/sttengine.py:200
+msgid "Recognition on"
+msgstr "ამოცნობა ჩართულია"
+
+#: engine/sttengine.py:219
+msgid "Recognition modes"
+msgstr "ამოცნობის რეჟიმები"
+
+#: engine/sttengine.py:333
+msgid "IBus Speech To Text"
+msgstr "IBus Speech To Text"
+
+#: engine/sttengine.py:338
+msgid "What you say is always write."
+msgstr "იწერება ყოველთვის ის, რასაც ამბობთ."
+
+#: engine/sttengine.py:341
+msgid "translator-credits"
+msgstr "ეკატერინე პაპავა"
+
+#: engine/sttconfigdialog.ui:8
+msgid "IBus STT Setup"
+msgstr "IBus STT-ის მორგება"
+
+#: engine/sttconfigdialog.ui:13
+msgid "General"
+msgstr "ზოგადი"
+
+#: engine/sttconfigdialog.ui:19
+msgid "Preload models"
+msgstr "მოდელების წინასწარი ჩატვირთვა"
+
+#: engine/sttconfigdialog.ui:20
+msgid ""
+"Starting voice recognition becomes faster but it requires more memory in "
+"between"
+msgstr ""
+"ხმის ამოცნობის დაწყება სწრაფი იქნება, მაგრამ მას სადღაც შუაში მეტი "
+"მეხსიერება სჭირდება"
+
+#: engine/sttconfigdialog.ui:31
+msgid "Active on start"
+msgstr "აქტიურია გაშვებისას"
+
+#: engine/sttconfigdialog.ui:32
+msgid "Start voice recognition as soon as STT is activated"
+msgstr "საუბრის ამოცნობის დაწყება მაშინვე, როგორც კი STT გააქტიურდება"
+
+#: engine/sttconfigdialog.ui:43
+msgid "System Locale"
+msgstr "სისტემური ენა"
+
+#: engine/sttconfigdialog.ui:44
+msgid "Always use system locale."
+msgstr "ყოველთვის სისტემის ლოკალის გამოყენება."
+
+#: engine/sttconfigdialog.ui:58
+msgid "Locales"
+msgstr "ლოკალები"
+
+#: engine/sttconfigdialog.ui:66
+msgid "Text formatting"
+msgstr "ტექსტის დაფორმატება"
+
+#: engine/sttconfigdialog.ui:83 engine/sttconfigdialog.ui:199
+msgid "Commands"
+msgstr "ბრძანებები"
+
+#: engine/sttconfigdialog.ui:97 engine/sttconfigdialog.ui:219
+msgid "Case"
+msgstr "რეგისტრი"
+
+#: engine/sttconfigdialog.ui:111 engine/sttconfigdialog.ui:239
+msgid "Punctuation"
+msgstr "პუნქტუაცია"
+
+#: engine/sttconfigdialog.ui:125 engine/sttconfigdialog.ui:259
+msgid "Diacritics"
+msgstr "დიაკრიტიკები"
+
+#: engine/sttconfigdialog.ui:139 engine/sttconfigdialog.ui:279
+msgid "Custom shortcuts"
+msgstr "საკუთარი მალსახმობები"
+
+#: engine/sttconfigdialog.py:258
+msgid "Open Formatting File"
+msgstr "დაფორმატების ფაილის გახსნა"
+
+#: engine/sttconfigdialog.py:259 engine/sttmodelchooserdialog.py:123
+#: engine/sttshortcutdialog.ui:210
+msgid "Cancel"
+msgstr "გაუქმება"
+
+#: engine/sttconfigdialog.py:259 engine/sttmodelchooserdialog.py:123
+msgid "Open"
+msgstr "გახსნა"
+
+#: engine/sttconfigdialog.py:569
+msgid ""
+"The file that defines automatic formatting for your locale does not have the "
+"proper format."
+msgstr ""
+"ფაილი, რომელიც განსაზღვრავს ავტომატურ დაფორმატებას თქვენი ლოკალისთვის, სწორ "
+"ფორმატში არაა."
+
+#: engine/sttconfigdialog.py:571
+msgid ""
+"A file that defines automatic formatting for your locale is missing. You can "
+"manually add one."
+msgstr ""
+"ფაილი, რომელიც განსაზღვრავს ავტომატურ დაფორმატებას თქვენი ლოკალისთვის, "
+"აღმოჩენილი არაა. შეგიძლიათ, ის ხელით ჩაამატოთ."
+
+#: engine/sttconfigdialog.py:584
+msgid "There is no available model for the current locale"
+msgstr "მიმდინარე ლოკალისთვის მოდელი ხელმისაწვდომი არაა"
+
+#: engine/sttconfigdialog.py:584
+msgid "Download Model"
+msgstr "მოდელის გადმოწერა"
+
+#: engine/sttlocalerow.py:62
+#, python-format
+msgid "%s : system locale"
+msgstr "%s : სისტემის ლოკალი"
+
+#: engine/sttlocalerow.py:109
+msgid "No model downloaded yet"
+msgstr "ჯერ მოდელები გადმოწერილი არაა"
+
+#: engine/sttlocalerow.py:114
+msgid "Custom model installed manually in a non-standard directory"
+msgstr "არასტანდარტულ საქაღალდეში ხელით დაყენებული მორგებული მოდელი"
+
+#: engine/sttlocalerow.py:119
+msgid "unknown size"
+msgstr "უცნობი ზომა"
+
+#: engine/sttlocalerow.py:125
+#, python-format
+msgid "This model is obsolete - %s"
+msgstr "ეს მოდელი მოძველებული - %s"
+
+#: engine/sttlocalerow.py:128
+#, python-format
+msgid "Large model that may be more accurate than smaller ones - %s"
+msgstr "დიდი მოდელი, რომელიც, შეიძლება, უფრო ზუსტი იყოს, ვიდრე პატარები - %s"
+
+#: engine/sttlocalerow.py:130
+#, python-format
+msgid "Lightweight model for Android and RPi - %s"
+msgstr "მსუბუქი მოდელი Android-ისთვის და RPi-ისთვის - %s"
+
+#: engine/sttlocalerow.py:132
+msgid ""
+"No description available for the current model (name not found in online "
+"database)"
+msgstr ""
+"მიმდინარე მოდელისთვის აღწერა ხელმისაწვდომი არაა (ინტერნეტმონაცემთა ბაზაში "
+"სახელი აღმოჩენილი არაა)"
+
+#: engine/sttmodelchooserdialog.ui:7
+msgid "Manage Recognition Models"
+msgstr "ამოცნობის მოდელების მართვა"
+
+#: engine/sttmodelchooserdialog.ui:29
+msgid "Available models"
+msgstr "ხელმისაწვდომი მოდელები"
+
+#: engine/sttmodelchooserdialog.ui:30
+msgid ""
+"A recognition model is required for recognition to proceed with the current "
+"locale. Larger models are usually more accurate but require more memory."
+msgstr ""
+"მიმდინარე ლოკალით ამოსაცნობად ამოცნობის მოდელია საჭირო. დიდი მოდელები, "
+"ჩვეულებრივ, უფრო ზუსტებია, მაგრამ მეტი მეხსიერებაც სჭირდებათ."
+
+#: engine/sttmodelchooserdialog.ui:52
+msgid "Show obsolete models"
+msgstr "მოძველებული მოდელების ჩვენება"
+
+#: engine/sttmodelchooserdialog.py:122
+msgid "Open Model"
+msgstr "მოდელის გახსნა"
+
+#: engine/sttshortcutdialog.ui:6
+msgid "Shortcut Editing"
+msgstr "მალსახმობების ჩასწორება"
+
+#: engine/sttshortcutdialog.ui:33
+msgid "Description"
+msgstr "აღწერა"
+
+#: engine/sttshortcutdialog.ui:44
+msgid "Text"
+msgstr "ტექსტი"
+
+#: engine/sttshortcutdialog.ui:64
+msgid "Utterances"
+msgstr "გამონათქვამები"
+
+#: engine/sttshortcutdialog.ui:114
+msgid "Type a new utterance or correct the existing one"
+msgstr "აკრიფეთ ახალი გამოთქმა, ან ჩაასწორეთ არსებული"
+
+#: engine/sttshortcutdialog.ui:145
+msgid "Speak to add new utterances"
+msgstr "ისაუბრეთ ახალი გამონათქვამების დასამატებლად"
+
+#: engine/sttshortcutdialog.ui:235
+msgid "Add Utterance"
+msgstr "გამოთქმის დამატება"
+
+#: engine/sttshortcutdialog.ui:245 engine/sttshortcutdialog.ui:264
+msgid "Apply Changes"
+msgstr "ცვლილებების გადატარება"
+
+#: engine/sttshortcutdialog.ui:255
+msgid "Add Shortcurt"
+msgstr "მალსახმობის დამატება"
+
+#: engine/sttshortcutrow.py:111
+#, python-format
+msgid "Character <span weight='heavy'>%s</span>"
+msgstr "სიმბოლო <span weight='heavy'>%s</span>"
+
+#: data/ibus-setup-stt.desktop.in.in:3
+msgid "IBus Speech to Text"
+msgstr "IBus Speech to Text"
+
+#: data/ibus-setup-stt.desktop.in.in:4
+msgid "Set IBus Speech to Text Preferences"
+msgstr "IBus Speech to Text-ის პარამეტრების დაყენება"
+
+#: data/stt.appdata.xml.in.in:4
+msgid "Speech To Text Component"
+msgstr "საუბრის ამოცნობის კომპონენტი"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:6
+msgid "Start voice recognition as soon as the engine is enabled"
+msgstr "ხმის ამოცნობის დაწყება ძრავის ჩართვისთანავე"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:7
+msgid "Start voice recognition as soon as the engine is enabled."
+msgstr "ხმის ამოცნობის დაწყება ძრავის ჩართვისთანავე."
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:11
+msgid ""
+"Preload the recognition engine's model to start more quickly when enabled"
+msgstr ""
+"ამოცნობის ძრავის მოდელის წინასწარი ჩატვირთვა ჩართვისას მყისიერი დაწყებისთვის"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:12
+msgid ""
+"Preload the recognition engine to start more quickly when enabled. There is "
+"a drawback though as most of the time engines' models require a lot of "
+"memory."
+msgstr ""
+"ამოცნობის ძრავის წინასწარი ჩატვირთვა, რომ ამოცნობა უფრო სწრაფად დაიწყოს მისი "
+"ჩართვის შემდეგ. ამის ნაკლი ისაა, რომ დროის უმეტესი ნაწილის განმავლობაში "
+"ძრავის მოდელებს აუარება მეხსიერება სჭირდებათ."
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:16
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:17
+msgid "Stop voice recognition if a key is pressed"
+msgstr "საუბრის ამოცნობის გაჩერება ღილაკის დაჭერის შემთხვევაში"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:21
+msgid "Display partial results"
+msgstr "ნაწილობრივი შედეგების ჩვენება"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:22
+msgid "Use IBus preedit functionality to display partial results"
+msgstr ""
+"IBus-ის წინასწარი ჩასწორების ფუნქციონალის გამოყენება ნაწილობრივი შედეგების "
+"საჩვენებლად"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:26
+msgid "Format partial results"
+msgstr "ნაწილობრივი შედეგების დაფორმატება"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:27
+msgid "Format partial results as it is done for the final ones"
+msgstr ""
+"ნაწილობრივი შედეგების დაფორმატება ისევე, როგორც ეს საბოლოოებისთვის ხდება"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:30
+msgid "Locale used"
+msgstr "გამოყენებული ლოკალი"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:32
+msgid "Sets the currently used locale"
+msgstr "დააყენებს ამჟამად გამოყენებულ ლოკალს"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:35
+msgid "Paths to VOSK models"
+msgstr "ბილიკი VOSK მოდელებამდე"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:37
+msgid ""
+"A JSON formatted string that is used to associate locales with their models. "
+"It can be the name of a model if it is in default monitored paths or a "
+"custom path."
+msgstr ""
+"JSON-ად დაფორმატებული სტრიქონი, რომელიც გამოიყენება ლოკალების თავიანთ "
+"მოდელებთან ასოცირებისთვის. ის შეიძლება, იყოს მოდელის სახელი, თუ ის "
+"ნაგულისხმევად სკანირებად, ან მორგებულ ბილიკზეა."
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:40
+msgid "Paths to formatting files"
+msgstr "ბილიკების დაფორმატების ფაილებამდე"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:42
+msgid ""
+"A JSON formatted string that is used to associate locales with a formatting "
+"file (used for automatic formatting of output). It is a custom path or "
+"nothing for defaut path."
+msgstr ""
+"JSON-ად დაფორმატებული სტრიქონი, რომელიც გამოიყენება ლოკალების დაფორმატების "
+"ფაილთან ასოცირებისთვის (გამოიყენება გამოტანის ავტომატური დაფორმატებისთვის). "
+"წამოადგენს მორგებულ ბილიკს, ან არაფერს ნაგულისხმევი ბილიკისთვის."
