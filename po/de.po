@@ -8,327 +8,342 @@ msgstr ""
 "Project-Id-Version: ibus-stt\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2022-07-23 20:08+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2026-10-10 17:18+0000\n"
+"Last-Translator: Mike FABIAN <mfabian@redhat.com>\n"
+"Language-Team: German <https://translate.fedoraproject.org/projects/ibus-"
+"speech-to-text-input-method/main/de/>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 2026.10.1\n"
 
 #: engine/main.py:177
 msgid "Executed by IBus"
-msgstr ""
+msgstr "Ausgeführt von IBus"
 
 #: engine/main.py:184
 msgid "Daemonize"
-msgstr ""
+msgstr "Als Daemon ausführen"
 
 #: engine/main.py:191
 msgid "Debug"
-msgstr ""
+msgstr "Fehlersuche"
 
 #: engine/sttengine.py:70 engine/sttengine.py:203
 msgid "Recognition off"
-msgstr ""
+msgstr "Spracherkennung aus"
 
 #: engine/sttengine.py:74 engine/sttengine.py:215
 msgid "Toggle speech recognition"
-msgstr ""
+msgstr "Spracherkennung ein/aus"
 
 #: engine/sttengine.py:78 engine/sttengine.py:226
 msgid "Dictate"
-msgstr ""
+msgstr "Diktieren"
 
 #: engine/sttengine.py:81 engine/sttengine.py:230
 msgid "Toggle dictation mode"
-msgstr ""
+msgstr "Diktiermodus ein/aus"
 
 #: engine/sttengine.py:83 engine/sttengine.py:234
 msgid "Dictate (no formatting)"
-msgstr ""
+msgstr "Diktiermodus (ohne Formatierung)"
 
 #: engine/sttengine.py:86 engine/sttengine.py:237
 msgid "Toggle dictation mode with no automatic formatting"
-msgstr ""
+msgstr "Diktiermodus ohne Auto-Formatierung ein/aus"
 
 #: engine/sttengine.py:88 engine/sttengine.py:241
 msgid "Spell"
-msgstr ""
+msgstr "Buchstabieren"
 
 #: engine/sttengine.py:91 engine/sttengine.py:245
 msgid "Toggle spelling mode"
-msgstr ""
+msgstr "Buchstabiermodus ein/aus"
 
 #: engine/sttengine.py:93
 msgid "Recognition mode"
-msgstr ""
+msgstr "Spracherkennungsmodus"
 
 #: engine/sttengine.py:100 engine/sttengine.py:250
 msgid "Use digits"
-msgstr ""
+msgstr "Ziffern benutzen"
 
 #: engine/sttengine.py:104 engine/sttengine.py:254
 msgid "Toggle the use of digits"
-msgstr ""
+msgstr "Ziffern benutzen ein/aus"
 
 #: engine/sttengine.py:107
 msgid "Settings"
-msgstr ""
+msgstr "Einstellungen"
 
 #: engine/sttengine.py:110
 msgid "Configure IBus STT"
-msgstr ""
+msgstr "IBus STT konfigurieren"
 
 #: engine/sttengine.py:112 engine/sttengine.py:334
 msgid "About IBus Speech To Text"
-msgstr ""
+msgstr "Info über IBus Speech To Text"
 
 #: engine/sttengine.py:115
 msgid "Learn more about IBus STT"
-msgstr ""
+msgstr "Mehr über IBus STT erfahren"
 
 #: engine/sttengine.py:200
 msgid "Recognition on"
-msgstr ""
+msgstr "Spracherkennung an"
 
 #: engine/sttengine.py:219
 msgid "Recognition modes"
-msgstr ""
+msgstr "Spracherkennungs-Modi"
 
 #: engine/sttengine.py:333
 msgid "IBus Speech To Text"
-msgstr ""
+msgstr "IBus Speech To Text"
 
 #: engine/sttengine.py:338
 msgid "What you say is always write."
-msgstr ""
+msgstr "Diktieren statt tippen."
 
 #: engine/sttengine.py:341
 msgid "translator-credits"
-msgstr ""
+msgstr "Mike Fabian <maiku.fabian@gmail.com>, 2026"
 
 #: engine/sttconfigdialog.ui:8
 msgid "IBus STT Setup"
-msgstr ""
+msgstr "IBus STT Einstellungen"
 
 #: engine/sttconfigdialog.ui:13
 msgid "General"
-msgstr ""
+msgstr "Allgemein"
 
 #: engine/sttconfigdialog.ui:19
 msgid "Preload models"
-msgstr ""
+msgstr "Modelle vorab laden"
 
 #: engine/sttconfigdialog.ui:20
 msgid ""
 "Starting voice recognition becomes faster but it requires more memory in "
 "between"
-msgstr ""
+msgstr "Startet die Spracherkennung schneller, braucht dafür aber mehr Speicher"
 
 #: engine/sttconfigdialog.ui:31
 msgid "Active on start"
-msgstr ""
+msgstr "Beim Start aktivieren"
 
 #: engine/sttconfigdialog.ui:32
 msgid "Start voice recognition as soon as STT is activated"
-msgstr ""
+msgstr "Spracherkennung starten, sobald STT aktiviert wird"
 
 #: engine/sttconfigdialog.ui:43
 msgid "System Locale"
-msgstr ""
+msgstr "System-Locale"
 
 #: engine/sttconfigdialog.ui:44
 msgid "Always use system locale."
-msgstr ""
+msgstr "Immer die System-Lokale benutzen."
 
 #: engine/sttconfigdialog.ui:58
 msgid "Locales"
-msgstr ""
+msgstr "Localen"
 
 #: engine/sttconfigdialog.ui:66
 msgid "Text formatting"
-msgstr ""
+msgstr "Textformatierung"
 
 #: engine/sttconfigdialog.ui:83 engine/sttconfigdialog.ui:199
 msgid "Commands"
-msgstr ""
+msgstr "Kommandos"
 
 #: engine/sttconfigdialog.ui:97 engine/sttconfigdialog.ui:219
 msgid "Case"
-msgstr ""
+msgstr "Groß-/Kleinschreibung"
 
 #: engine/sttconfigdialog.ui:111 engine/sttconfigdialog.ui:239
 msgid "Punctuation"
-msgstr ""
+msgstr "Zeichensetzung"
 
 #: engine/sttconfigdialog.ui:125 engine/sttconfigdialog.ui:259
 msgid "Diacritics"
-msgstr ""
+msgstr "Diakritika"
 
 #: engine/sttconfigdialog.ui:139 engine/sttconfigdialog.ui:279
 msgid "Custom shortcuts"
-msgstr ""
+msgstr "Benutzerdefinierte Abkürzungen"
 
 #: engine/sttconfigdialog.py:258
 msgid "Open Formatting File"
-msgstr ""
+msgstr "Formatierungsdatei öffnen"
 
 #: engine/sttconfigdialog.py:259 engine/sttmodelchooserdialog.py:123
 #: engine/sttshortcutdialog.ui:210
 msgid "Cancel"
-msgstr ""
+msgstr "Abbrechen"
 
 #: engine/sttconfigdialog.py:259 engine/sttmodelchooserdialog.py:123
 msgid "Open"
-msgstr ""
+msgstr "Öffnen"
 
 #: engine/sttconfigdialog.py:569
 msgid ""
 "The file that defines automatic formatting for your locale does not have the "
 "proper format."
 msgstr ""
+"Die Datei, die die automatische Formatierung für deine Sprache und Region "
+"festlegt, ist fehlerhaft."
 
 #: engine/sttconfigdialog.py:571
 msgid ""
 "A file that defines automatic formatting for your locale is missing. You can "
 "manually add one."
 msgstr ""
+"Die Datei mit den Regeln für die automatische Formatierung deiner Sprache "
+"und Region fehlt. Du kannst sie manuell hinzufügen."
 
 #: engine/sttconfigdialog.py:584
 msgid "There is no available model for the current locale"
-msgstr ""
+msgstr "Für die aktuelle Sprache und Region ist kein Modell verfügbar"
 
 #: engine/sttconfigdialog.py:584
 msgid "Download Model"
-msgstr ""
+msgstr "Modell herunterladen"
 
 #: engine/sttlocalerow.py:62
 #, python-format
 msgid "%s : system locale"
-msgstr ""
+msgstr "%s : Systemsprache und -region"
 
 #: engine/sttlocalerow.py:109
 msgid "No model downloaded yet"
-msgstr ""
+msgstr "Noch kein Modell heruntergeladen"
 
 #: engine/sttlocalerow.py:114
 msgid "Custom model installed manually in a non-standard directory"
 msgstr ""
+"Benutzerdefiniertes Modell wurde manuell in einem nicht standardmäßigen "
+"Ordner installiert"
 
 #: engine/sttlocalerow.py:119
 msgid "unknown size"
-msgstr ""
+msgstr "unbekannte Größe"
 
 #: engine/sttlocalerow.py:125
 #, python-format
 msgid "This model is obsolete - %s"
-msgstr ""
+msgstr "Dieses Modell ist veraltet - %s"
 
 #: engine/sttlocalerow.py:128
 #, python-format
 msgid "Large model that may be more accurate than smaller ones - %s"
-msgstr ""
+msgstr "Großes Modell, das möglicherweise genauer ist als die kleineren – %s"
 
 #: engine/sttlocalerow.py:130
 #, python-format
 msgid "Lightweight model for Android and RPi - %s"
-msgstr ""
+msgstr "Ressourcenschonendes Modell für Android und RPi – %s"
 
 #: engine/sttlocalerow.py:132
 msgid ""
 "No description available for the current model (name not found in online "
 "database)"
 msgstr ""
+"Für das aktuelle Modell ist keine Beschreibung verfügbar (Name nicht in der "
+"Online-Datenbank gefunden)"
 
 #: engine/sttmodelchooserdialog.ui:7
 msgid "Manage Recognition Models"
-msgstr ""
+msgstr "Spracherkennungsmodelle verwalten"
 
 #: engine/sttmodelchooserdialog.ui:29
 msgid "Available models"
-msgstr ""
+msgstr "Verfügbare Modelle"
 
 #: engine/sttmodelchooserdialog.ui:30
 msgid ""
 "A recognition model is required for recognition to proceed with the current "
 "locale. Larger models are usually more accurate but require more memory."
 msgstr ""
+"Für die Spracherkennung mit der aktuellen Sprache und Region ist ein Modell "
+"erforderlich. Größere Modelle sind in der Regel genauer, benötigen aber mehr "
+"Speicher."
 
 #: engine/sttmodelchooserdialog.ui:52
 msgid "Show obsolete models"
-msgstr ""
+msgstr "Veraltete Modelle anzeigen"
 
 #: engine/sttmodelchooserdialog.py:122
 msgid "Open Model"
-msgstr ""
+msgstr "Modell öffnen"
 
 #: engine/sttshortcutdialog.ui:6
 msgid "Shortcut Editing"
-msgstr ""
+msgstr "Abkürzungen bearbeiten"
 
 #: engine/sttshortcutdialog.ui:33
 msgid "Description"
-msgstr ""
+msgstr "Beschreibung"
 
 #: engine/sttshortcutdialog.ui:44
 msgid "Text"
-msgstr ""
+msgstr "Text"
 
 #: engine/sttshortcutdialog.ui:64
 msgid "Utterances"
-msgstr ""
+msgstr "Sprachsequenzen"
 
 #: engine/sttshortcutdialog.ui:114
 msgid "Type a new utterance or correct the existing one"
-msgstr ""
+msgstr "Gib eine neue Sprachsequenz ein oder korrigiere die vorhandene"
 
 #: engine/sttshortcutdialog.ui:145
 msgid "Speak to add new utterances"
-msgstr ""
+msgstr "Sprich, um neue Sprachsequenzen hinzuzufügen"
 
 #: engine/sttshortcutdialog.ui:235
 msgid "Add Utterance"
-msgstr ""
+msgstr "Sprachsequenz hinzufügen"
 
 #: engine/sttshortcutdialog.ui:245 engine/sttshortcutdialog.ui:264
 msgid "Apply Changes"
-msgstr ""
+msgstr "Änderungen anwenden"
 
 #: engine/sttshortcutdialog.ui:255
 msgid "Add Shortcurt"
-msgstr ""
+msgstr "Abkürzung hinzufügen"
 
 #: engine/sttshortcutrow.py:111
 #, python-format
 msgid "Character <span weight='heavy'>%s</span>"
-msgstr ""
+msgstr "Zeichen <span weight='heavy'>%s</span>"
 
 #: data/ibus-setup-stt.desktop.in.in:3
 msgid "IBus Speech to Text"
-msgstr ""
+msgstr "IBus Speech to Text"
 
 #: data/ibus-setup-stt.desktop.in.in:4
 msgid "Set IBus Speech to Text Preferences"
-msgstr ""
+msgstr "Einstellungen für IBus Speech to Text festlegen"
 
 #: data/stt.appdata.xml.in.in:4
 msgid "Speech To Text Component"
-msgstr ""
+msgstr "Speech-to-Text-Komponente"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:6
 msgid "Start voice recognition as soon as the engine is enabled"
-msgstr ""
+msgstr "Spracherkennung automatisch starten, sobald die Engine aktiviert ist"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:7
 msgid "Start voice recognition as soon as the engine is enabled."
-msgstr ""
+msgstr "Spracherkennung automatisch starten, sobald die Engine aktiviert ist."
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:11
 msgid ""
 "Preload the recognition engine's model to start more quickly when enabled"
 msgstr ""
+"Das Modell der Spracherkennung vorladen, damit sie bei Aktivierung schneller "
+"startet"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:12
 msgid ""
@@ -336,39 +351,41 @@ msgid ""
 "a drawback though as most of the time engines' models require a lot of "
 "memory."
 msgstr ""
+"Die Spracherkennung vorladen, damit sie bei Aktivierung schneller startet. "
+"Ein Nachteil: Die Modelle der Engines benötigen meist viel Speicher."
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:16
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:17
 msgid "Stop voice recognition if a key is pressed"
-msgstr ""
+msgstr "Spracherkennung beenden, wenn eine Taste gedrückt wird"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:21
 msgid "Display partial results"
-msgstr ""
+msgstr "Zwischenergebnisse anzeigen"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:22
 msgid "Use IBus preedit functionality to display partial results"
-msgstr ""
+msgstr "IBus-Preedit verwenden, um Zwischenergebnisse anzuzeigen"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:26
 msgid "Format partial results"
-msgstr ""
+msgstr "Zwischenergebnisse formatieren"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:27
 msgid "Format partial results as it is done for the final ones"
-msgstr ""
+msgstr "Zwischenergebnisse wie Endergebnisse formatieren"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:30
 msgid "Locale used"
-msgstr ""
+msgstr "Benutzte Locale"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:32
 msgid "Sets the currently used locale"
-msgstr ""
+msgstr "Setzt die aktuell benutzte Locale"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:35
 msgid "Paths to VOSK models"
-msgstr ""
+msgstr "VOSK-Modellpfade"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:37
 msgid ""
@@ -376,10 +393,13 @@ msgid ""
 "It can be the name of a model if it is in default monitored paths or a "
 "custom path."
 msgstr ""
+"JSON-String zur Zuordnung von Sprachen und Regionen zu ihren Modellen. Kann "
+"ein Modellname (in den standardmäßig überwachten Pfaden) oder ein "
+"benutzerdefinierter Pfad sein."
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:40
 msgid "Paths to formatting files"
-msgstr ""
+msgstr "Pfade zu Formatdateien"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:42
 msgid ""
@@ -387,3 +407,6 @@ msgid ""
 "file (used for automatic formatting of output). It is a custom path or "
 "nothing for defaut path."
 msgstr ""
+"JSON-String zur Zuordnung von Sprachen und Regionen zu einer "
+"Formatierungsdatei (für die automatische Formatierung der Ausgabe). "
+"Benutzerdefinierter Pfad – oder nichts für den Standardpfad."
