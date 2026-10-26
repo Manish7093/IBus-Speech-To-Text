@@ -1,0 +1,239 @@
+{
+    "description" : {
+        "name" : "Deutsch (Deutschland)",
+        "locale" : "de_DE",
+        "comment" : "This section is not used or displayed."
+    },
+    "language" : {
+        "no space after" : " ([{@\n\t-",
+        "no space before" : " ….,)]}'-\t\n",
+        "capitalize next" : ".?!…",
+        "digits" : {
+            "eins" : "1",
+            "zwei" : "2",
+            "drei" : "3",
+            "vier" : "4",
+            "fünf" : "5",
+            "sechs" : "6",
+            "sieben" : "7",
+            "acht" : "8",
+            "neun" : "9",
+            "null" : "0"
+         },
+         "enumerations" : {
+            "erstens" : "1.",
+            "zweitens" : "2.",
+            "drittens" : "3.",
+            "viertens" : "4.",
+            "fünftens" : "5.",
+            "sechstens" : "6.",
+            "siebtens" : "7.",
+            "achtens" : "8.",
+            "neuntens" : "9."
+         },
+         "comment": ""
+    },
+    "custom" : [{
+        "value" : "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nescio quo modo praetervolavit oratio. Illa argumenta propria videamus, cur omnia sint paria peccata. Negat esse eam, inquit, propter se expetendam. Duo Reges: constructio interrete. His similes sunt omnes, qui virtuti student levantur vitiis, levantur erroribus, nisi forte censes Ti. Atque his de rebus et splendida est eorum et illustris oratio. Quod idem cum vestri faciant, non satis magnam tribuunt inventoribus gratiam. Longum est enim ad omnia respondere, quae a te dicta sunt. Haec quo modo conveniant, non sane intellego. Ab his oratores, ab his imperatores ac rerum publicarum principes extiterunt.\n\nQuem si tenueris, non modo meum Ciceronem, sed etiam me ipsum abducas licebit. Tubulum fuisse, qua illum, cuius is condemnatus est rogatione, P. Negat esse eam, inquit, propter se expetendam. Quid dubitas igitur mutare principia naturae? Respondent extrema primis, media utrisque, omnia omnibus. Nec vero sum nescius esse utilitatem in historia, non modo voluptatem. Quid me istud rogas? Causa autem fuit huc veniendi ut quosdam hinc libros promerem.\n\nApparet statim, quae sint officia, quae actiones. Hoc etsi multimodis reprehendi potest, tamen accipio, quod dant. Quasi ego id curem, quid ille aiat aut neget. Quarum ambarum rerum cum medicinam pollicetur, luxuriae licentiam pollicetur. Itaque sensibus rationem adiunxit et ratione effecta sensus non reliquit. Quid ergo aliud intellegetur nisi uti ne quae pars naturae neglegatur? Negare non possum. Sed quot homines, tot sententiae;",
+        "utterances" : ["Lorem ipsum", "lorem ipsum"],
+        "description" : "Beispieltext"
+    }, {
+        "shortcut": "Control+v",
+        "description": "Einfügen",
+        "utterances": ["text einfügen", "Text einfügen"]
+    }, {
+        "shortcut": "Control+BackSpace",
+        "description": "Letztes Wort löschen",
+        "utterances": ["letztes Wort löschen", "letztes wort löschen", "das letzte wort löschen"]
+    }, {
+        "shortcut": "Control+z",
+        "description": "Rückgängig",
+        "utterances": ["rückgängig","letzten stand herstellen"]
+    }, {
+        "shortcut": "Return",
+        "description": "Eingabe",
+        "utterances": ["eingabe", "enter"]
+    }, {
+        "shortcut": "Shift+Control+Delete",
+        "description": "Zeile löschen",
+        "utterances": ["Zeile löschen", "zeile löschen", "lösche Zeile"]
+    }],
+    "commands" : [{
+        "value" : "digits",
+        "utterances" : ["Nummersiche Eingabe"],
+        "description" : "Nummerische Eingabe aktivieren"
+        }, {
+        "value" : "spelling",
+        "utterances" : ["rechtschreibprüfung", "rechtschreibung"],
+        "description" : "Rechtschreibprüfung"
+        }, {
+        "value" : "dictation",
+        "utterances" : ["diktieren", "diktat starten", "diktiermodus", "Diktiermodus"],
+        "description" : "Diktieren"
+        }, {
+        "value" : "literal",
+        "utterances" : ["ohne formatierung", "ohne Format", "ohne format","unformatierte Ausgabe","unformatierte ausgabe"],
+        "description" : "Unformatierte Ausgabe"
+        }, {
+        "value" : "cancel",
+        "utterances" : ["abbrechen", "Abbruch", "eingabe verwerfen"],
+        "description" : "Letzte Eingabe verwerfen"
+        }],
+    "case" : [{
+        "value" : "upper all",
+        "utterances" :["nur großbuchstaben","nur grossbuchstaben","nur groß buchstaben","nur große buchstaben","nur grosse buchstaben","nur grose buchstaben","in großbuchstaben","in grossbuchstaben"],
+        "description" : "Nur Großbuchstaben"
+        }, {
+        "value" : "upper",
+        "utterances" : ["mot en majuscule", "mot en majuscules", "mots en majuscules"],
+        "description" : "Nächstes Wort Großschreiben"
+        }, {
+        "value" : "title",
+        "utterances" : ["als Hauptwort", "großer anfgangsbuchstabe","großer buchstabe", "grosser buchstabe", "grosser anfangsbuchstabe", "nächstes wort großschreiben","nächstes wort grossschreiben"],
+        "description" : "Großer Anfangsbuchstabe"
+        }, {
+        "value" : "capitalize",
+        "utterances" : ["kapitälchen","in kapitälchen","in kapitälchen schrift"],
+        "description" : "Kapitälchen"
+        }, {
+        "value" : "lower",
+        "utterances" : ["in kleinbuchstaben", "kleinbuchstaben","nur kleinbuchstaben"],
+        "description" : "Nur Kleinbuchstaben"
+        }],
+    "diacritics" :[{
+        "value" : ["\u0060", "\u0300"],
+        "utterances" : ["accent grave", "gravis"]
+        }, {
+        "value" : ["\u00B4", "\u0301"],
+        "utterances" : ["accent aigu", "akut"]
+        }, {
+        "value" : ["\u005E", "\u0302"],
+        "utterances" : ["accent circonflexe", "zirkumflex"]
+        }],
+    "punctuation" : [{
+        "value" : "@",
+        "utterances" : ["ät","at", "klammeraffe", "affenschwanz"]
+        }, {
+        "value" : "\t",
+        "utterances" : ["tabulator","tab"],
+        "description" : "Tabulator"
+        }, {
+        "value" : ",",
+        "utterances" : "komma"
+        }, {
+        "value" : "…",
+        "utterances" : ["auslassungspunkte", "auslassungs punkte", "dreipunkt", "drei punkte"]
+        }, {
+        "value" : ".",
+        "utterances" : ["punkt", "satzende"]
+        }, {
+        "value" : ";",
+        "utterances" : ["strichpunkt", "strich punkt"]
+        }, {
+        "value" : ":",
+        "utterances" : ["doppelpunkt", "doppel punkt"]
+        }, {
+        "value" : "!",
+        "utterances" : ["Ausrufezeichen", "ausrufezeichen"]
+        }, {
+        "value" : "?",
+        "utterances" : ["Fragezeichen", "fragezeichen"]
+        }, {
+        "value" : " ",
+        "utterances" : "leerzeichen",
+        "description" : "Leerzeichen"
+        }, {
+        "value" : "\n",
+        "utterances" : ["neue Zeile", "zeielnumbruch", "zeilen umbruch"],
+        "description" : "Neue Zeile"
+        }, {
+        "value" : "[",
+        "utterances" : ["eckige klammer auf", "öffnende eckige klammer"]
+        }, {
+        "value" : "(",
+        "utterances" : ["runde klammer auf", "öffnende runde klammer"]
+        }, {
+        "value" : "{",
+        "utterances" : ["geschweifte klammer auf", "öffnende geschweifte klammer"]
+        }, {
+        "value" : "«",
+        "utterances" : ["öffnende guillemet", "viel kleiner als zeichen","öffnende französische anführungeszeichen", "öffnende spitzzeichen", "öffnende möwchen", "öffnende chevrons"]
+        }, {
+        "value" : "]",
+        "utterances" : ["eckige klammer zu", "schließende eckige klammer", "schliessende eckige klammer"]
+        }, {
+        "value" : ")",
+        "utterances" : ["runde klammer zu", "schließende runde klammer", "schliessende runde klammer"]
+        }, {
+        "value" : "}",
+        "utterances" : ["geschweifte klammer zu", "schließende geschweifte klammer", "schliessende geschweifte klammer"]
+        }, {
+        "value" : "»",
+        "utterances" : ["schliessende guillemet","schließende guillemet", "viel kleiner als zeichen","schließende französische anführungeszeichen", "schliessende französische anführungeszeichen","schließende spitzzeichen", "schließende möwchen", "schließende chevrons", "schliessende spitzzeichen", "schliessende möwchen", "schliessende chevrons"]
+        }, {
+        "value" : "'",
+        "utterances" : ["hochkomma", "apostroph", "apostrof"]
+        }, {
+        "value" : "\"",
+        "utterances" : ["anführungszeichen", "doppelte anführungszeichen","doppelter apostroph"]
+        }, {
+        "value" : "°",
+        "utterances" : ["grad zeichen", "grad", "gradzeichen"]
+        }, {
+        "value" : "+",
+        "utterances" : ["plus", "pluszeichen", "plus zeichen"]
+        }, {
+        "value" : "-",
+        "utterances" : ["minus", "minuszeichen", "minus zeichen"]
+        }, {
+        "value" : "=",
+        "utterances" : ["gleichheitszeichen", "ist gleich wie", "ist gleich zu"]
+        }, {
+        "value" : "-",
+        "utterances" : ["bindestrich", "strich", "binde strich"],
+        "description" : "Leerzeichen"
+        }, {
+        "value" : " – ",
+        "utterances" : ["Gedankenstrich", "gedankenstrich", "gedanken strich"],
+        "description" : "Gedankenstrich"
+        }, {
+        "value" : "_",
+        "utterances" : ["unterstrich", "Unterstrich", "unter strich"]
+        }, {
+        "value" : "#",
+        "utterances" : ["doppelkreuz", "raute", "lattenzaun", "hashzeichen", "hash zeichen"]
+        }, {
+        "value" : "\/",
+        "utterances" : ["Schrägstrich", "schrägstrich"]
+        }, {
+        "value" : "*",
+        "utterances" : ["sternchen", "asterisk"]
+        }, {
+        "value" : "§",
+        "utterances" : ["paragraph", "paragraf"]
+        }, {
+        "value" : "%",
+        "utterances" : ["prozentzeichen"]
+        }, {
+        "value" : "&",
+        "utterances" : ["kaufmännisches und", "ampersand", "et zeichen"]
+        }, {
+        "value" : "~",
+        "utterances" : ["Tilde", "tilde", "in etwa gleich zu"]
+        }, {
+        "value" : "\\",
+        "utterances" : ["backslash", "rückschrägstrich", "rück schrägstrich", "umgekehrter schrägstrich", "linksseitiger schrägstrich"]
+        }, {
+        "value" : "€",
+        "utterances" : ["euro zeichen", "währungssymbol", "währung symbol"]
+        }, {
+        "value" : "²",
+        "utterances" : ["quadrat", "zum quadrat"]
+        }, {
+        "value" : "<",
+        "utterances" : ["kleiner als zeichen", "kleiner zeichen"]
+        }, {
+        "value" : ">",
+        "utterances" : ["grösser als zeichen", "grösser zeichen", "größer als zeichen", "größer zeichen"]
+    }]
+}
