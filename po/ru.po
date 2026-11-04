@@ -1,0 +1,414 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the ibus-stt package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ibus-stt\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-07-23 20:08+0200\n"
+"PO-Revision-Date: 2026-10-25 22:18+0000\n"
+"Last-Translator: Andrei Stepanov <adem4ik@gmail.com>\n"
+"Language-Team: Russian <https://translate.fedoraproject.org/projects/ibus-"
+"speech-to-text-input-method/main/ru/>\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"X-Generator: Weblate 2026.10.1\n"
+
+#: engine/main.py:177
+msgid "Executed by IBus"
+msgstr "Запускается IBus"
+
+#: engine/main.py:184
+msgid "Daemonize"
+msgstr "Демонизировать"
+
+#: engine/main.py:191
+msgid "Debug"
+msgstr "Отладка"
+
+#: engine/sttengine.py:70 engine/sttengine.py:203
+msgid "Recognition off"
+msgstr "Распознавание выключено"
+
+#: engine/sttengine.py:74 engine/sttengine.py:215
+msgid "Toggle speech recognition"
+msgstr "Переключить распознавание речи"
+
+#: engine/sttengine.py:78 engine/sttengine.py:226
+msgid "Dictate"
+msgstr "Диктовать"
+
+#: engine/sttengine.py:81 engine/sttengine.py:230
+msgid "Toggle dictation mode"
+msgstr "Переключить режим диктовки"
+
+#: engine/sttengine.py:83 engine/sttengine.py:234
+msgid "Dictate (no formatting)"
+msgstr "Диктовать (без форматирования)"
+
+#: engine/sttengine.py:86 engine/sttengine.py:237
+msgid "Toggle dictation mode with no automatic formatting"
+msgstr "Переключить режим диктовки без автоматического форматирования"
+
+#: engine/sttengine.py:88 engine/sttengine.py:241
+msgid "Spell"
+msgstr "Произносить по буквам"
+
+#: engine/sttengine.py:91 engine/sttengine.py:245
+msgid "Toggle spelling mode"
+msgstr "Переключить режим произнесения по буквам"
+
+#: engine/sttengine.py:93
+msgid "Recognition mode"
+msgstr "Режим распознавания"
+
+#: engine/sttengine.py:100 engine/sttengine.py:250
+msgid "Use digits"
+msgstr "Использовать цифры"
+
+#: engine/sttengine.py:104 engine/sttengine.py:254
+msgid "Toggle the use of digits"
+msgstr "Переключить использование цифр"
+
+#: engine/sttengine.py:107
+msgid "Settings"
+msgstr "Настройки"
+
+#: engine/sttengine.py:110
+msgid "Configure IBus STT"
+msgstr "Настроить IBus STT"
+
+#: engine/sttengine.py:112 engine/sttengine.py:334
+msgid "About IBus Speech To Text"
+msgstr "О IBus Speech To Text"
+
+#: engine/sttengine.py:115
+msgid "Learn more about IBus STT"
+msgstr "Узнать больше об IBus STT"
+
+#: engine/sttengine.py:200
+msgid "Recognition on"
+msgstr "Распознавание включено"
+
+#: engine/sttengine.py:219
+msgid "Recognition modes"
+msgstr "Режимы распознавания"
+
+#: engine/sttengine.py:333
+msgid "IBus Speech To Text"
+msgstr "IBus Speech To Text"
+
+#: engine/sttengine.py:338
+msgid "What you say is always write."
+msgstr "То, что вы говорите, всегда записывается."
+
+#: engine/sttengine.py:341
+msgid "translator-credits"
+msgstr "Андрей Степанов <adem4ik@gmail.com>, 2026"
+
+#: engine/sttconfigdialog.ui:8
+msgid "IBus STT Setup"
+msgstr "Настройка IBus STT"
+
+#: engine/sttconfigdialog.ui:13
+msgid "General"
+msgstr "Общие"
+
+#: engine/sttconfigdialog.ui:19
+msgid "Preload models"
+msgstr "Предзагружать модели"
+
+#: engine/sttconfigdialog.ui:20
+msgid ""
+"Starting voice recognition becomes faster but it requires more memory in "
+"between"
+msgstr ""
+"Запуск распознавания речи становится быстрее, но требует больше памяти в "
+"промежутках между запусками"
+
+#: engine/sttconfigdialog.ui:31
+msgid "Active on start"
+msgstr "Активно при запуске"
+
+#: engine/sttconfigdialog.ui:32
+msgid "Start voice recognition as soon as STT is activated"
+msgstr "Начинать распознавание речи сразу после активации STT"
+
+#: engine/sttconfigdialog.ui:43
+msgid "System Locale"
+msgstr "Системная локаль"
+
+#: engine/sttconfigdialog.ui:44
+msgid "Always use system locale."
+msgstr "Всегда использовать системную локаль."
+
+#: engine/sttconfigdialog.ui:58
+msgid "Locales"
+msgstr "Локали"
+
+#: engine/sttconfigdialog.ui:66
+msgid "Text formatting"
+msgstr "Форматирование текста"
+
+#: engine/sttconfigdialog.ui:83 engine/sttconfigdialog.ui:199
+msgid "Commands"
+msgstr "Команды"
+
+#: engine/sttconfigdialog.ui:97 engine/sttconfigdialog.ui:219
+msgid "Case"
+msgstr "Регистр"
+
+#: engine/sttconfigdialog.ui:111 engine/sttconfigdialog.ui:239
+msgid "Punctuation"
+msgstr "Пунктуация"
+
+#: engine/sttconfigdialog.ui:125 engine/sttconfigdialog.ui:259
+msgid "Diacritics"
+msgstr "Диакритические знаки"
+
+#: engine/sttconfigdialog.ui:139 engine/sttconfigdialog.ui:279
+msgid "Custom shortcuts"
+msgstr "Пользовательские сокращения"
+
+#: engine/sttconfigdialog.py:258
+msgid "Open Formatting File"
+msgstr "Открыть файл форматирования"
+
+#: engine/sttconfigdialog.py:259 engine/sttmodelchooserdialog.py:123
+#: engine/sttshortcutdialog.ui:210
+msgid "Cancel"
+msgstr "Отмена"
+
+#: engine/sttconfigdialog.py:259 engine/sttmodelchooserdialog.py:123
+msgid "Open"
+msgstr "Открыть"
+
+#: engine/sttconfigdialog.py:569
+msgid ""
+"The file that defines automatic formatting for your locale does not have the "
+"proper format."
+msgstr ""
+"Файл, определяющий автоматическое форматирование для вашей локали, имеет "
+"неправильный формат."
+
+#: engine/sttconfigdialog.py:571
+msgid ""
+"A file that defines automatic formatting for your locale is missing. You can "
+"manually add one."
+msgstr ""
+"Файл, определяющий автоматическое форматирование для вашей локали, "
+"отсутствует. Вы можете добавить его вручную."
+
+#: engine/sttconfigdialog.py:584
+msgid "There is no available model for the current locale"
+msgstr "Для текущей локали нет доступной модели"
+
+#: engine/sttconfigdialog.py:584
+msgid "Download Model"
+msgstr "Загрузить модель"
+
+#: engine/sttlocalerow.py:62
+#, python-format
+msgid "%s : system locale"
+msgstr "%s : системная локаль"
+
+#: engine/sttlocalerow.py:109
+msgid "No model downloaded yet"
+msgstr "Модель ещё не загружена"
+
+#: engine/sttlocalerow.py:114
+msgid "Custom model installed manually in a non-standard directory"
+msgstr "Пользовательская модель, установленная вручную в нестандартном каталоге"
+
+#: engine/sttlocalerow.py:119
+msgid "unknown size"
+msgstr "неизвестный размер"
+
+#: engine/sttlocalerow.py:125
+#, python-format
+msgid "This model is obsolete - %s"
+msgstr "Эта модель устарела — %s"
+
+#: engine/sttlocalerow.py:128
+#, python-format
+msgid "Large model that may be more accurate than smaller ones - %s"
+msgstr "Большая модель, которая может быть точнее меньших — %s"
+
+#: engine/sttlocalerow.py:130
+#, python-format
+msgid "Lightweight model for Android and RPi - %s"
+msgstr "Облегчённая модель для Android и RPi — %s"
+
+#: engine/sttlocalerow.py:132
+msgid ""
+"No description available for the current model (name not found in online "
+"database)"
+msgstr ""
+"Описание для текущей модели недоступно (имя не найдено в онлайн-базе данных)"
+
+#: engine/sttmodelchooserdialog.ui:7
+msgid "Manage Recognition Models"
+msgstr "Управление моделями распознавания"
+
+#: engine/sttmodelchooserdialog.ui:29
+msgid "Available models"
+msgstr "Доступные модели"
+
+#: engine/sttmodelchooserdialog.ui:30
+msgid ""
+"A recognition model is required for recognition to proceed with the current "
+"locale. Larger models are usually more accurate but require more memory."
+msgstr ""
+"Для распознавания с текущей локалью требуется модель распознавания. Большие "
+"модели обычно точнее, но требуют больше памяти."
+
+#: engine/sttmodelchooserdialog.ui:52
+msgid "Show obsolete models"
+msgstr "Показывать устаревшие модели"
+
+#: engine/sttmodelchooserdialog.py:122
+msgid "Open Model"
+msgstr "Открыть модель"
+
+#: engine/sttshortcutdialog.ui:6
+msgid "Shortcut Editing"
+msgstr "Редактирование сокращения"
+
+#: engine/sttshortcutdialog.ui:33
+msgid "Description"
+msgstr "Описание"
+
+#: engine/sttshortcutdialog.ui:44
+msgid "Text"
+msgstr "Текст"
+
+#: engine/sttshortcutdialog.ui:64
+msgid "Utterances"
+msgstr "Произносимые фразы"
+
+#: engine/sttshortcutdialog.ui:114
+msgid "Type a new utterance or correct the existing one"
+msgstr "Введите новую фразу или исправьте существующую"
+
+#: engine/sttshortcutdialog.ui:145
+msgid "Speak to add new utterances"
+msgstr "Произнесите, чтобы добавить новые фразы"
+
+#: engine/sttshortcutdialog.ui:235
+msgid "Add Utterance"
+msgstr "Добавить фразу"
+
+#: engine/sttshortcutdialog.ui:245 engine/sttshortcutdialog.ui:264
+msgid "Apply Changes"
+msgstr "Применить изменения"
+
+#: engine/sttshortcutdialog.ui:255
+msgid "Add Shortcurt"
+msgstr "Добавить сокращение"
+
+#: engine/sttshortcutrow.py:111
+#, python-format
+msgid "Character <span weight='heavy'>%s</span>"
+msgstr "Символ <span weight='heavy'>%s</span>"
+
+#: data/ibus-setup-stt.desktop.in.in:3
+msgid "IBus Speech to Text"
+msgstr "IBus Speech to Text"
+
+#: data/ibus-setup-stt.desktop.in.in:4
+msgid "Set IBus Speech to Text Preferences"
+msgstr "Настроить параметры IBus Speech to Text"
+
+#: data/stt.appdata.xml.in.in:4
+msgid "Speech To Text Component"
+msgstr "Компонент преобразования речи в текст"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:6
+msgid "Start voice recognition as soon as the engine is enabled"
+msgstr "Начинать распознавание речи сразу после включения движка"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:7
+msgid "Start voice recognition as soon as the engine is enabled."
+msgstr "Начинать распознавание речи сразу после включения движка."
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:11
+msgid ""
+"Preload the recognition engine's model to start more quickly when enabled"
+msgstr ""
+"Предзагружать модель движка распознавания для более быстрого запуска при "
+"включении"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:12
+msgid ""
+"Preload the recognition engine to start more quickly when enabled. There is "
+"a drawback though as most of the time engines' models require a lot of "
+"memory."
+msgstr ""
+"Предзагружать движок распознавания для более быстрого запуска при включении. "
+"Однако есть недостаток: большую часть времени модели движков требуют много "
+"памяти."
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:16
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:17
+msgid "Stop voice recognition if a key is pressed"
+msgstr "Останавливать распознавание речи при нажатии клавиши"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:21
+msgid "Display partial results"
+msgstr "Отображать промежуточные результаты"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:22
+msgid "Use IBus preedit functionality to display partial results"
+msgstr ""
+"Использовать функцию предварительного редактирования IBus для отображения "
+"промежуточных результатов"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:26
+msgid "Format partial results"
+msgstr "Форматировать промежуточные результаты"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:27
+msgid "Format partial results as it is done for the final ones"
+msgstr "Форматировать промежуточные результаты так же, как финальные"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:30
+msgid "Locale used"
+msgstr "Используемая локаль"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:32
+msgid "Sets the currently used locale"
+msgstr "Задаёт используемую в настоящее время локаль"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:35
+msgid "Paths to VOSK models"
+msgstr "Пути к моделям VOSK"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:37
+msgid ""
+"A JSON formatted string that is used to associate locales with their models. "
+"It can be the name of a model if it is in default monitored paths or a "
+"custom path."
+msgstr ""
+"Строка в формате JSON, используемая для сопоставления локалей с их моделями. "
+"Это может быть имя модели, если она находится в стандартных отслеживаемых "
+"путях, или пользовательский путь."
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:40
+msgid "Paths to formatting files"
+msgstr "Пути к файлам форматирования"
+
+#: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:42
+msgid ""
+"A JSON formatted string that is used to associate locales with a formatting "
+"file (used for automatic formatting of output). It is a custom path or "
+"nothing for defaut path."
+msgstr ""
+"Строка в формате JSON, используемая для сопоставления локалей с файлом "
+"форматирования (используется для автоматического форматирования вывода). Это "
+"пользовательский путь или пустое значение для пути по умолчанию."
