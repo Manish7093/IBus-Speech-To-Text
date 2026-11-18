@@ -75,6 +75,7 @@ class STTGstVosk(STTGstBase):
 
         self._model_id = 0
         self._model = None
+        self._stale_seqnum = 0
         self._set_model()
 
     def __del__(self):
@@ -190,6 +191,17 @@ class STTGstVosk(STTGstBase):
         else:
             LOG_MSG.error("unreadable json answer")
 
+    def discard_pending(self):
+    # Reset active recognition and reject earlier Vosk bus results
+        super().discard_pending()
+
+        # Drain active decoding before setting the bus cutoff
+        if self._vosk is not None and self.is_running() == True:
+            self._vosk.get_property("current-final-results")
+
+        # Advance the cutoff even while paused to reject outstanding bus results
+        self._stale_seqnum = Gst.util_seqnum_next()
+
     def get_final_results(self):
         # There is no final results when not playing or paused
         self._parse_json(self._vosk.get_property("current-final-results"))
@@ -202,6 +214,11 @@ class STTGstVosk(STTGstBase):
         msg_struct = message.get_structure ()
         struct_name = msg_struct.get_name ()
         if struct_name is None or struct_name != "vosk":
+            return
+
+        # Posted for an input context that no longer has the focus
+        if Gst.util_seqnum_compare(message.get_seqnum(), self._stale_seqnum) < 0:
+            LOG_MSG.debug("ignoring result from a previous input session")
             return
 
         self._parse_json(msg_struct.get_string ("current-result"))

@@ -82,6 +82,7 @@ class STTGstOnnxAsr(STTGstBase):
         self._min_buffer_duration = 2.0
         self._sample_rate = 16000
         self._processing = False
+        self._buffer_session = 0
         self._process_queue = queue.Queue()
         self._process_thread = None
         self._stop_processing = False
@@ -151,10 +152,8 @@ class STTGstOnnxAsr(STTGstBase):
             return False
         self._recognizer = recognizer
 
-        if recognizer is not None and restore_state > Gst.State.READY:
-            ret, current, pending = self.pipeline.get_state(0)
-            if current == Gst.State.READY:
-                self.pipeline.set_state(restore_state)
+        if recognizer is not None:
+            self.restore_state_after_load(restore_state)
 
         self.emit("model-changed")
         return False
@@ -206,8 +205,15 @@ class STTGstOnnxAsr(STTGstBase):
 
     def _on_new_sample(self, appsink):
         """Callback when new audio sample arrives."""
+        # Snapshot the session before pulling audio, since focus can change mid-pull
+        session = self._session_id
+
         sample = appsink.emit("pull-sample")
         if sample is None:
+            return Gst.FlowReturn.OK
+
+        if self.audio_is_stale(sample):
+            LOG_MSG.debug("dropping audio recorded before the focus changed")
             return Gst.FlowReturn.OK
 
         buf = sample.get_buffer()
@@ -219,6 +225,14 @@ class STTGstOnnxAsr(STTGstBase):
         buf.unmap(map_info)
 
         with self._audio_lock:
+            if session != self._session_id:
+                LOG_MSG.debug("focus changed while this audio was read, "
+                              "dropping it")
+                return Gst.FlowReturn.OK
+            # Keep buffered audio tagged with its original session
+            if len(self._audio_buffer) == 0:
+                self._buffer_session = session
+
             self._audio_buffer.append(audio_data)
             self._buffer_duration += len(audio_data) / self._sample_rate
             trigger_process = self._buffer_duration >= self._max_buffer_duration
@@ -253,7 +267,7 @@ class STTGstOnnxAsr(STTGstBase):
 
             audio_float = audio.astype(np.float32) / 32768.0
 
-            self._process_queue.put(audio_float)
+            self._process_queue.put((audio_float, self._buffer_session))
 
             if self._process_thread is None or not self._process_thread.is_alive():
                 self._process_thread = threading.Thread(target=self._process_worker, daemon=True)
@@ -263,12 +277,17 @@ class STTGstOnnxAsr(STTGstBase):
         """Background worker to process audio."""
         while not self._stop_processing:
             try:
-                audio = self._process_queue.get(timeout=0.1)
+                audio, session = self._process_queue.get(timeout=0.1)
             except queue.Empty:
                 continue
 
             recognizer = self._recognizer
             if recognizer is None:
+                self._process_queue.task_done()
+                continue
+
+            if session != self._session_id:
+                LOG_MSG.debug("dropping audio captured for session %i", session)
                 self._process_queue.task_done()
                 continue
 
@@ -282,7 +301,7 @@ class STTGstOnnxAsr(STTGstBase):
 
                 if text:
                     LOG_MSG.info("onnx-asr transcription result: '%s'", text)
-                    GLib.idle_add(self._emit_text, text)
+                    GLib.idle_add(self._emit_text, text, session)
                 else:
                     LOG_MSG.debug("No text transcribed from audio")
 
@@ -292,13 +311,34 @@ class STTGstOnnxAsr(STTGstBase):
             self._process_queue.task_done()
             recognizer = None
 
-    def _emit_text(self, text):
+    def _emit_text(self, text, session):
+        if session != self._session_id:
+            LOG_MSG.debug("dropping result of session %i (current is %i): '%s'",
+                          session, self._session_id, text)
+            return False
+
         self.emit("text", text)
         return False
 
+    def discard_pending(self):
+    # Invalidate the session and clear accumulated ONNX audio
+
+        # Reset the buffer and its session together
+        with self._audio_lock:
+            super().discard_pending()
+
+            self._audio_buffer.clear()
+            self._buffer_duration = 0.0
+            self._buffer_session = self._session_id
+
+
     def get_final_results(self):
+        # Let the worker finish asynchronously so IBus can handle key events
+        if self._recognizer is None or self._stop_processing:
+            LOG_MSG.debug("no recognizer to flush")
+            return
+
         self._process_audio_buffer(force=True)
-        self._process_queue.join()
 
     def get_results(self):
         pass

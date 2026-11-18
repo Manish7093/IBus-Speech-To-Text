@@ -60,6 +60,10 @@ class STTGstBase (GObject.Object):
 
         self._target=STTEngineState.UNKNOWN
 
+        self._session_id=0
+        # Use clock time because running time resets when the pipeline enters READY
+        self._discard_before=Gst.CLOCK_TIME_NONE
+
     def __del__(self):
         LOG_MSG.info("GstBase __Del__")
 
@@ -215,13 +219,88 @@ class STTGstBase (GObject.Object):
             LOG_MSG.error("no pipeline")
             return False
 
+        self._target=STTEngineState.LOADED
+
         # Only stop if playing or moving toward playing state
         if self.__get_state(False) != STTEngineState.RUNNING:
             LOG_MSG.info("pipeline not running")
             return True
 
-        self._target=STTEngineState.LOADED
         return self._stop_real()
+
+    def restore_state_after_load(self, previous_state):
+    # Restore PAUSED when needed after an asynchronous model load
+    # A RUNNING target resumes in do_model_changed()
+        if self._pipeline is None or self._target == STTEngineState.RUNNING:
+            return
+
+        if previous_state <= Gst.State.READY:
+            return
+
+        ret, current, pending = self._pipeline.get_state(0)
+        if current == Gst.State.READY:
+            LOG_MSG.debug("model loaded, pipeline back to PAUSED (target %s)",
+                          self._target)
+            self._pipeline.set_state(Gst.State.PAUSED)
+
+    @property
+    def session_id(self):
+        return self._session_id
+
+    def _current_clock_time(self):
+    # Read the pipeline clock & returns clock time in nanoseconds, or Gst.CLOCK_TIME_NONE if unavailable
+        if self._pipeline is None:
+            return Gst.CLOCK_TIME_NONE
+
+        clock=self._pipeline.get_clock()
+        if clock is None:
+            return Gst.CLOCK_TIME_NONE
+
+        return clock.get_time()
+
+    def _pipeline_base_time(self):
+        if self._pipeline is None:
+            return Gst.CLOCK_TIME_NONE
+
+        return self._pipeline.get_base_time()
+
+    def discard_pending(self):
+    # Invalidate pending audio and results for the outgoing input session
+        clock_time=self._current_clock_time()
+        if clock_time != Gst.CLOCK_TIME_NONE:
+            self._discard_before=clock_time
+
+        self._session_id += 1
+
+        LOG_MSG.debug("pending input discarded, new session %i (from %s)",
+                      self._session_id, self._discard_before)
+
+    def audio_is_stale(self, sample):
+    # Check the sample start time against the last session change
+    # True if the sample starts before the cutoff
+        if self._discard_before == Gst.CLOCK_TIME_NONE:
+            return False
+
+        buf=sample.get_buffer()
+        if buf is None or buf.pts == Gst.CLOCK_TIME_NONE:
+            return False
+
+        segment=sample.get_segment()
+        if segment is None:
+            return False
+
+        running_time=segment.to_running_time(Gst.Format.TIME, buf.pts)
+        if running_time == Gst.CLOCK_TIME_NONE:
+            return False
+
+        if self._current_clock_time() == Gst.CLOCK_TIME_NONE:
+            return False
+
+        base_time=self._pipeline_base_time()
+        if base_time == Gst.CLOCK_TIME_NONE:
+            return False
+
+        return bool(base_time + running_time < self._discard_before)
 
     def get_final_results(self):
         LOG_MSG.info("get final results not implemented for this backend")
