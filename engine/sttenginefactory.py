@@ -34,6 +34,7 @@ class STTEngineFactory(IBus.Factory):
         self._bus=bus
         self._current_engine=None
         self._engine_count=0
+        self._engine_id=0
         self._activity_cb=activity_cb
         super().__init__(object_path=IBus.PATH_FACTORY,
                          connection=bus.get_connection())
@@ -48,7 +49,10 @@ class STTEngineFactory(IBus.Factory):
         if engine_name != "stt":
             return super().do_create_engine(engine_name)
 
-        engine=STTEngine(self._bus, "/org/freedesktop/IBus/STT")
+        # Unique object path for every engine
+        self._engine_id += 1
+        object_path="/org/freedesktop/IBus/STT/%i" % self._engine_id
+        engine=STTEngine(self._bus, object_path)
         self._current_engine=engine
 
         self._engine_count += 1
@@ -67,4 +71,4 @@ class STTEngineFactory(IBus.Factory):
 
     def do_destroy(self):
         self._current_engine=None
-        super().do_destroy(self)
+        IBus.Factory.do_destroy(self)
