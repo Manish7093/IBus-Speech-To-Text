@@ -297,8 +297,11 @@ class STTGstOnnxAsr(STTGstBase):
         return False
 
     def get_final_results(self):
+        if self._recognizer is None or self._stop_processing:
+            LOG_MSG.debug("no recognizer to flush")
+            return
+
         self._process_audio_buffer(force=True)
-        self._process_queue.join()
 
     def get_results(self):
         pass

@@ -132,6 +132,9 @@ class STTEngine(IBus.Engine):
                                               sensitive=True,
                                               tooltip=_("Learn more about IBus STT")))
 
+        self._pending_flush_id=0
+        self._pending_stop_id=0
+
         self._engine_connected=False
         self._engine=stt_gst_factory_default().new_engine()
         if self._engine.has_model() == False:
@@ -169,6 +172,8 @@ class STTEngine(IBus.Engine):
     def do_destroy (self):
         # This method is inherited from IBusObject
         LOG_MSG.info("STTEngine destruction %s", self)
+
+        self._cancel_pending_key_tasks()
 
         self._settings.disconnect_by_func(self._stop_on_key_pressed_changed)
         self._settings=None
@@ -466,15 +471,44 @@ class STTEngine(IBus.Engine):
         # if self._engine.is_running() == True:
         #     self.commit_text(IBus.Text.new_from_string(""))
 
+    def _cancel_pending_key_tasks(self):
+        if self._pending_flush_id != 0:
+            GLib.source_remove(self._pending_flush_id)
+            self._pending_flush_id=0
+
+        if self._pending_stop_id != 0:
+            GLib.source_remove(self._pending_stop_id)
+            self._pending_stop_id=0
+
+    def _flush_results_cb(self):
+        self._pending_flush_id=0
+
+        if self._engine is None or self._engine.has_model() == False:
+            return GLib.SOURCE_REMOVE
+
+        # Asynchronously results through the "text" signal
+        self._engine.get_final_results()
+        return GLib.SOURCE_REMOVE
+
+    def _stop_engine_cb(self):
+        self._pending_stop_id=0
+
+        if self._engine is None:
+            return GLib.SOURCE_REMOVE
+
+        self._engine.stop()
+        self._update_state()
+        return GLib.SOURCE_REMOVE
+
     def do_process_key_event(self, keyval, keycode, state):
         if (state & IBus.ModifierType.RELEASE_MASK) != 0:
-            if self._stop_on_key_pressed == True:
-                self._engine.stop()
-                self._update_state()
+            if self._stop_on_key_pressed == True and self._pending_stop_id == 0:
+                self._pending_stop_id=GLib.idle_add(self._stop_engine_cb)
         else:
             # Any keystroke should stop a potential ongoing processing
-            if self._text_processor.is_processing() == True:
-                self._engine.get_final_results()
+            if self._text_processor.is_processing() == True and \
+               self._pending_flush_id == 0:
+                self._pending_flush_id=GLib.idle_add(self._flush_results_cb)
 
             # Usually there is a "set-surrounding-text" event after a key press.
             # So get ready for the update (though we keep our current one if
