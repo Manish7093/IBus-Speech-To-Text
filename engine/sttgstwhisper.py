@@ -82,6 +82,7 @@ class STTGstWhisper(STTGstBase):
         self._model    = None
         self._whisper  = None
         self._vad      = None
+        self._load_generation = 0
         self._set_model()
         self._ring_buffer     = np.array([], dtype=np.float32)
         self._ring_lock       = threading.Lock()
@@ -106,7 +107,6 @@ class STTGstWhisper(STTGstBase):
         self._process_thread  = None
         self._stop_processing = False
         self._draining        = False
-        self._drain_done      = threading.Event()
         self._use_partial_results = False
 
     def __del__(self):
@@ -118,6 +118,8 @@ class STTGstWhisper(STTGstBase):
 
     def destroy(self):
         self._stop_processing = True
+        self._load_generation += 1
+
         while True:
             try:
                 self._process_queue.get_nowait()
@@ -157,7 +159,7 @@ class STTGstWhisper(STTGstBase):
         """Load Whisper model using pywhispercpp"""
         if not WHISPER_AVAILABLE:
             LOG_MSG.error("pywhispercpp not available")
-            return False
+            return None
 
         try:
             LOG_MSG.info("Loading Whisper model: %s", model_path)
@@ -181,19 +183,43 @@ class STTGstWhisper(STTGstBase):
             if lang_code:
                 kwargs["language"] = lang_code
 
-            self._whisper = Model(model_path, **kwargs)
-            return True
+            return Model(model_path, **kwargs)
 
         except Exception as e:
             LOG_MSG.error("Failed to load Whisper model: %s", e)
-            self._whisper = None
+            return None
+
+    def _load_model_thread(self, model_path, restore_state, generation):
+        whisper = self._load_whisper_model(model_path)
+        GLib.idle_add(self._model_load_done_cb,
+                      whisper, restore_state, generation)
+
+    def _model_load_done_cb(self, whisper, restore_state, generation):
+        if self.pipeline is None or generation != self._load_generation:
+            LOG_MSG.debug("discarding stale model load")
             return False
+
+        self._whisper = whisper
+        if whisper is None:
+            return False
+
+        if self._vad is not None:
+            self._vad.reset()
+
+        if restore_state > Gst.State.READY:
+            ret, current, pending = self.pipeline.get_state(0)
+            if current == Gst.State.READY:
+                self.pipeline.set_state(restore_state)
+
+        self.emit("model-changed")
+        return False
 
     def _set_model_path(self):
         if self._model is None or self._model.available() is False:
             LOG_MSG.info("model path does not exist (%s - %s)",
                         self._model.get_name() if self._model else "None",
                         self._model.get_path() if self._model else "None")
+            self._load_generation += 1
             self._whisper = None
             self.emit("model-changed")
             return
@@ -205,15 +231,11 @@ class STTGstWhisper(STTGstBase):
         if state >= Gst.State.READY:
             self.pipeline.set_state(Gst.State.READY)
 
-        success = self._load_whisper_model(new_model_path)
-
-        if state >= Gst.State.READY:
-            self.pipeline.set_state(state)
-
-        if success:
-            if self._vad is not None:
-                self._vad.reset()
-            self.emit("model-changed")
+        self._load_generation += 1
+        self._whisper = None
+        threading.Thread(target=self._load_model_thread,
+                         args=(new_model_path, state, self._load_generation),
+                         daemon=True).start()
 
     def _model_changed(self, model):
         self._set_model_path()
@@ -329,8 +351,6 @@ class STTGstWhisper(STTGstBase):
 
             if self._whisper is None:
                 self._process_queue.task_done()
-                if self._process_queue.unfinished_tasks == 0:
-                    self._drain_done.set()
                 continue
 
             try:
@@ -361,14 +381,16 @@ class STTGstWhisper(STTGstBase):
                 LOG_MSG.error("Whisper transcription error: %s", e, exc_info=True)
 
             self._process_queue.task_done()
-            if self._process_queue.unfinished_tasks == 0:
-                self._drain_done.set()
 
     def _emit_text(self, text):
         self.emit("text", text)
         return False
 
     def get_final_results(self):
+        if self._whisper is None or self._stop_processing:
+            LOG_MSG.debug("no model loaded, nothing to flush")
+            return
+
         self._draining = True
         try:
             if self._vad is not None:
@@ -378,11 +400,6 @@ class STTGstWhisper(STTGstBase):
             else:
                 self._flush_chunks_to_ring()
                 self._dispatch_to_worker()
-
-            self._drain_done.clear()
-            if self._process_queue.unfinished_tasks == 0:
-                return
-            self._drain_done.wait(5.0)
         finally:
             self._draining = False
 

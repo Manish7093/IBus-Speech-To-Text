@@ -91,6 +91,7 @@ class STTGstMoonshine(STTGstBase):
         self._model = None
         self._transcriber = None
         self._listener = None
+        self._load_generation = 0
         self._tx_lock = threading.Lock()
         self._session_active = False
         self._stopping = False
@@ -124,6 +125,7 @@ class STTGstMoonshine(STTGstBase):
         self._destroyed = True
 
         self._stop_processing = True
+        self._load_generation += 1
 
         thread = self._process_thread
         self._process_thread = None
@@ -169,7 +171,7 @@ class STTGstMoonshine(STTGstBase):
         except Exception as e:
             LOG_MSG.error("moonshine_voice not available (%s). "
                           "Install with: pip install moonshine-voice", e)
-            return False
+            return (None, None)
 
         try:
             arch = (ModelArch(model_arch) if model_arch is not None else ModelArch.BASE)
@@ -177,22 +179,43 @@ class STTGstMoonshine(STTGstBase):
             transcriber = Transcriber(model_path=model_path, model_arch=arch)
             listener = _line_listener_class()(self)
             transcriber.add_listener(listener)
-            with self._tx_lock:
-                self._teardown_transcriber()
-                self._transcriber = transcriber
-                self._listener = listener
-            return True
+            return (transcriber, listener)
         except Exception as e:
             LOG_MSG.error("Failed to load Moonshine model: %s", e)
-            with self._tx_lock:
-                self._teardown_transcriber()
+            return (None, None)
+
+    def _load_model_thread(self, model_path, model_arch, restore_state, generation):
+        transcriber, listener = self._load_moonshine_model(model_path, model_arch)
+        GLib.idle_add(self._model_load_done_cb,
+                      transcriber, listener, restore_state, generation)
+
+    def _model_load_done_cb(self, transcriber, listener, restore_state, generation):
+        if self.pipeline is None or generation != self._load_generation:
+            LOG_MSG.debug("discarding stale model load")
             return False
+
+        with self._tx_lock:
+            self._teardown_transcriber()
+            self._transcriber = transcriber
+            self._listener = listener
+
+        if transcriber is None:
+            return False
+
+        if restore_state > Gst.State.READY:
+            ret, current, pending = self.pipeline.get_state(0)
+            if current == Gst.State.READY:
+                self.pipeline.set_state(restore_state)
+
+        self.emit("model-changed")
+        return False
 
     def _set_model_path(self):
         if self._model is None or self._model.available() is False:
             LOG_MSG.info("model path does not exist (%s - %s)",
                          self._model.get_name() if self._model else "None",
                          self._model.get_path() if self._model else "None")
+            self._load_generation += 1
             with self._tx_lock:
                 self._teardown_transcriber()
             self.emit("model-changed")
@@ -206,13 +229,14 @@ class STTGstMoonshine(STTGstBase):
         if state >= Gst.State.READY:
             self.pipeline.set_state(Gst.State.READY)
 
-        success = self._load_moonshine_model(new_model_path, new_model_arch)
+        self._load_generation += 1
+        with self._tx_lock:
+            self._teardown_transcriber()
 
-        if state >= Gst.State.READY:
-            self.pipeline.set_state(state)
-
-        if success:
-            self.emit("model-changed")
+        threading.Thread(target=self._load_model_thread,
+                         args=(new_model_path, new_model_arch, state,
+                               self._load_generation),
+                         daemon=True).start()
 
     def _model_changed(self, model):
         self._set_model_path()
@@ -313,7 +337,6 @@ class STTGstMoonshine(STTGstBase):
         if self._stop_processing or self._process_thread is None or not self._process_thread.is_alive():
             return
         self._process_queue.put(("stop", None))
-        self._process_queue.join()
 
     def get_results(self):
         pass
