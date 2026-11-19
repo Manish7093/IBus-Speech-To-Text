@@ -8,328 +8,339 @@ msgstr ""
 "Project-Id-Version: ibus-stt\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2022-07-23 20:08+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2026-11-20 17:18+0000\n"
+"Last-Translator: Rihards Prieditis <rprieditis@gmail.com>\n"
+"Language-Team: Latvian <https://translate.fedoraproject.org/projects/ibus-"
+"speech-to-text-input-method/main/lv/>\n"
 "Language: lv\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n % 10 == 0 || n % 100 >= 11 && n % 100 <= "
 "19) ? 0 : ((n % 10 == 1 && n % 100 != 11) ? 1 : 2);\n"
+"X-Generator: Weblate 2026.11.2\n"
 
 #: engine/main.py:177
 msgid "Executed by IBus"
-msgstr ""
+msgstr "Izpilda IBus"
 
 #: engine/main.py:184
 msgid "Daemonize"
-msgstr ""
+msgstr "Darbināt kā dēmonu"
 
 #: engine/main.py:191
 msgid "Debug"
-msgstr ""
+msgstr "Atkļūdošana"
 
 #: engine/sttengine.py:70 engine/sttengine.py:203
 msgid "Recognition off"
-msgstr ""
+msgstr "Atpazīšana izslēgta"
 
 #: engine/sttengine.py:74 engine/sttengine.py:215
 msgid "Toggle speech recognition"
-msgstr ""
+msgstr "Pārslēgt runas atpazīšanu"
 
 #: engine/sttengine.py:78 engine/sttengine.py:226
 msgid "Dictate"
-msgstr ""
+msgstr "Diktēt"
 
 #: engine/sttengine.py:81 engine/sttengine.py:230
 msgid "Toggle dictation mode"
-msgstr ""
+msgstr "Pārslēgt diktēšanas režīmu"
 
 #: engine/sttengine.py:83 engine/sttengine.py:234
 msgid "Dictate (no formatting)"
-msgstr ""
+msgstr "Diktēt (bez formatēšanas)"
 
 #: engine/sttengine.py:86 engine/sttengine.py:237
 msgid "Toggle dictation mode with no automatic formatting"
-msgstr ""
+msgstr "Pārslēgt diktēšanas režīmu bez automātiskās formatēšanas"
 
 #: engine/sttengine.py:88 engine/sttengine.py:241
 msgid "Spell"
-msgstr ""
+msgstr "Burtot"
 
 #: engine/sttengine.py:91 engine/sttengine.py:245
 msgid "Toggle spelling mode"
-msgstr ""
+msgstr "Pārslēgt burtošanas režīmu"
 
 #: engine/sttengine.py:93
 msgid "Recognition mode"
-msgstr ""
+msgstr "Atpazīšanas režīms"
 
 #: engine/sttengine.py:100 engine/sttengine.py:250
 msgid "Use digits"
-msgstr ""
+msgstr "Lietot ciparus"
 
 #: engine/sttengine.py:104 engine/sttengine.py:254
 msgid "Toggle the use of digits"
-msgstr ""
+msgstr "Pārslēgt ciparu lietošanu"
 
 #: engine/sttengine.py:107
 msgid "Settings"
-msgstr ""
+msgstr "Iestatījumi"
 
 #: engine/sttengine.py:110
 msgid "Configure IBus STT"
-msgstr ""
+msgstr "Konfigurēt IBus STT"
 
 #: engine/sttengine.py:112 engine/sttengine.py:334
 msgid "About IBus Speech To Text"
-msgstr ""
+msgstr "Par IBus runas pārveidi tekstā"
 
 #: engine/sttengine.py:115
 msgid "Learn more about IBus STT"
-msgstr ""
+msgstr "Uzzināt vairāk par IBus STT"
 
 #: engine/sttengine.py:200
 msgid "Recognition on"
-msgstr ""
+msgstr "Atpazīšana ieslēgta"
 
 #: engine/sttengine.py:219
 msgid "Recognition modes"
-msgstr ""
+msgstr "Atpazīšanas režīmi"
 
 #: engine/sttengine.py:333
 msgid "IBus Speech To Text"
-msgstr ""
+msgstr "IBus runas pārveide tekstā"
 
 #: engine/sttengine.py:338
 msgid "What you say is always write."
-msgstr ""
+msgstr "Tas, ko sakāt, vienmēr tiek uzrakstīts."
 
 #: engine/sttengine.py:341
 msgid "translator-credits"
-msgstr ""
+msgstr "Rihards Priedītis"
 
 #: engine/sttconfigdialog.ui:8
 msgid "IBus STT Setup"
-msgstr ""
+msgstr "IBus STT iestatīšana"
 
 #: engine/sttconfigdialog.ui:13
 msgid "General"
-msgstr ""
+msgstr "Vispārīgi"
 
 #: engine/sttconfigdialog.ui:19
 msgid "Preload models"
-msgstr ""
+msgstr "Iepriekš ielādēt modeļus"
 
 #: engine/sttconfigdialog.ui:20
 msgid ""
 "Starting voice recognition becomes faster but it requires more memory in "
 "between"
-msgstr ""
+msgstr "Balss atpazīšana sākas ātrāk, taču starplaikā tai vajag vairāk atmiņas"
 
 #: engine/sttconfigdialog.ui:31
 msgid "Active on start"
-msgstr ""
+msgstr "Aktīvs pēc palaišanas"
 
 #: engine/sttconfigdialog.ui:32
 msgid "Start voice recognition as soon as STT is activated"
-msgstr ""
+msgstr "Sākt balss atpazīšanu, tiklīdz STT ir aktivizēts"
 
 #: engine/sttconfigdialog.ui:43
 msgid "System Locale"
-msgstr ""
+msgstr "Sistēmas lokāle"
 
 #: engine/sttconfigdialog.ui:44
 msgid "Always use system locale."
-msgstr ""
+msgstr "Vienmēr lietot sistēmas lokāli."
 
 #: engine/sttconfigdialog.ui:58
 msgid "Locales"
-msgstr ""
+msgstr "Lokāles"
 
 #: engine/sttconfigdialog.ui:66
 msgid "Text formatting"
-msgstr ""
+msgstr "Teksta formatēšana"
 
 #: engine/sttconfigdialog.ui:83 engine/sttconfigdialog.ui:199
 msgid "Commands"
-msgstr ""
+msgstr "Komandas"
 
 #: engine/sttconfigdialog.ui:97 engine/sttconfigdialog.ui:219
 msgid "Case"
-msgstr ""
+msgstr "Reģistrs"
 
 #: engine/sttconfigdialog.ui:111 engine/sttconfigdialog.ui:239
 msgid "Punctuation"
-msgstr ""
+msgstr "Pieturzīmes"
 
 #: engine/sttconfigdialog.ui:125 engine/sttconfigdialog.ui:259
 msgid "Diacritics"
-msgstr ""
+msgstr "Diakritiskās zīmes"
 
 #: engine/sttconfigdialog.ui:139 engine/sttconfigdialog.ui:279
 msgid "Custom shortcuts"
-msgstr ""
+msgstr "Pielāgotas saīsnes"
 
 #: engine/sttconfigdialog.py:258
 msgid "Open Formatting File"
-msgstr ""
+msgstr "Atvērt formatēšanas failu"
 
 #: engine/sttconfigdialog.py:259 engine/sttmodelchooserdialog.py:123
 #: engine/sttshortcutdialog.ui:210
 msgid "Cancel"
-msgstr ""
+msgstr "Atcelt"
 
 #: engine/sttconfigdialog.py:259 engine/sttmodelchooserdialog.py:123
 msgid "Open"
-msgstr ""
+msgstr "Atvērt"
 
 #: engine/sttconfigdialog.py:569
 msgid ""
 "The file that defines automatic formatting for your locale does not have the "
 "proper format."
 msgstr ""
+"Failam, kas nosaka automātisko formatēšanu Jūsu lokālei, nav pareiza formāta."
 
 #: engine/sttconfigdialog.py:571
 msgid ""
 "A file that defines automatic formatting for your locale is missing. You can "
 "manually add one."
 msgstr ""
+"Trūkst faila, kas nosaka automātisko formatēšanu Jūsu lokālei. To var "
+"pievienot manuāli."
 
 #: engine/sttconfigdialog.py:584
 msgid "There is no available model for the current locale"
-msgstr ""
+msgstr "Pašreizējai lokālei nav pieejama neviens modelis"
 
 #: engine/sttconfigdialog.py:584
 msgid "Download Model"
-msgstr ""
+msgstr "Lejupielādēt modeli"
 
 #: engine/sttlocalerow.py:62
 #, python-format
 msgid "%s : system locale"
-msgstr ""
+msgstr "%s : sistēmas lokāle"
 
 #: engine/sttlocalerow.py:109
 msgid "No model downloaded yet"
-msgstr ""
+msgstr "Vēl nav lejupielādēts neviens modelis"
 
 #: engine/sttlocalerow.py:114
 msgid "Custom model installed manually in a non-standard directory"
-msgstr ""
+msgstr "Pielāgots modelis, kas manuāli instalēts nestandarta mapē"
 
 #: engine/sttlocalerow.py:119
 msgid "unknown size"
-msgstr ""
+msgstr "nezināms izmērs"
 
 #: engine/sttlocalerow.py:125
 #, python-format
 msgid "This model is obsolete - %s"
-msgstr ""
+msgstr "Šis modelis ir novecojis — %s"
 
 #: engine/sttlocalerow.py:128
 #, python-format
 msgid "Large model that may be more accurate than smaller ones - %s"
-msgstr ""
+msgstr "Liels modelis, kas var būt precīzāks par mazākiem — %s"
 
 #: engine/sttlocalerow.py:130
 #, python-format
 msgid "Lightweight model for Android and RPi - %s"
-msgstr ""
+msgstr "Viegls modelis Android un RPi ierīcēm — %s"
 
 #: engine/sttlocalerow.py:132
 msgid ""
 "No description available for the current model (name not found in online "
 "database)"
 msgstr ""
+"Pašreizējam modelim apraksts nav pieejams (nosaukums nav atrasts tiešsaistes "
+"datubāzē)"
 
 #: engine/sttmodelchooserdialog.ui:7
 msgid "Manage Recognition Models"
-msgstr ""
+msgstr "Pārvaldīt atpazīšanas modeļus"
 
 #: engine/sttmodelchooserdialog.ui:29
 msgid "Available models"
-msgstr ""
+msgstr "Pieejamie modeļi"
 
 #: engine/sttmodelchooserdialog.ui:30
 msgid ""
 "A recognition model is required for recognition to proceed with the current "
 "locale. Larger models are usually more accurate but require more memory."
 msgstr ""
+"Lai atpazīšana varētu notikt ar pašreizējo lokāli, nepieciešams atpazīšanas "
+"modelis. Lielāki modeļi parasti ir precīzāki, bet tiem vajag vairāk atmiņas."
 
 #: engine/sttmodelchooserdialog.ui:52
 msgid "Show obsolete models"
-msgstr ""
+msgstr "Rādīt novecojušos modeļus"
 
 #: engine/sttmodelchooserdialog.py:122
 msgid "Open Model"
-msgstr ""
+msgstr "Atvērt modeli"
 
 #: engine/sttshortcutdialog.ui:6
 msgid "Shortcut Editing"
-msgstr ""
+msgstr "Saīsņu rediģēšana"
 
 #: engine/sttshortcutdialog.ui:33
 msgid "Description"
-msgstr ""
+msgstr "Apraksts"
 
 #: engine/sttshortcutdialog.ui:44
 msgid "Text"
-msgstr ""
+msgstr "Teksts"
 
 #: engine/sttshortcutdialog.ui:64
 msgid "Utterances"
-msgstr ""
+msgstr "Frāzes"
 
 #: engine/sttshortcutdialog.ui:114
 msgid "Type a new utterance or correct the existing one"
-msgstr ""
+msgstr "Ierakstiet jaunu frāzi vai izlabojiet esošo"
 
 #: engine/sttshortcutdialog.ui:145
 msgid "Speak to add new utterances"
-msgstr ""
+msgstr "Runājiet, lai pievienotu jaunas frāzes"
 
 #: engine/sttshortcutdialog.ui:235
 msgid "Add Utterance"
-msgstr ""
+msgstr "Pievienot frāzi"
 
 #: engine/sttshortcutdialog.ui:245 engine/sttshortcutdialog.ui:264
 msgid "Apply Changes"
-msgstr ""
+msgstr "Pielietot izmaiņas"
 
 #: engine/sttshortcutdialog.ui:255
 msgid "Add Shortcurt"
-msgstr ""
+msgstr "Pievienot saīsni"
 
 #: engine/sttshortcutrow.py:111
 #, python-format
 msgid "Character <span weight='heavy'>%s</span>"
-msgstr ""
+msgstr "Rakstzīme <span weight='heavy'>%s</span>"
 
 #: data/ibus-setup-stt.desktop.in.in:3
 msgid "IBus Speech to Text"
-msgstr ""
+msgstr "IBus runas pārveide tekstā"
 
 #: data/ibus-setup-stt.desktop.in.in:4
 msgid "Set IBus Speech to Text Preferences"
-msgstr ""
+msgstr "Iestatīt IBus runas pārveides tekstā iestatījumus"
 
 #: data/stt.appdata.xml.in.in:4
 msgid "Speech To Text Component"
-msgstr ""
+msgstr "Runas pārveides tekstā komponents"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:6
 msgid "Start voice recognition as soon as the engine is enabled"
-msgstr ""
+msgstr "Sākt balss atpazīšanu, tiklīdz dzinējs ir iespējots"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:7
 msgid "Start voice recognition as soon as the engine is enabled."
-msgstr ""
+msgstr "Sākt balss atpazīšanu, tiklīdz dzinējs ir iespējots."
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:11
 msgid ""
 "Preload the recognition engine's model to start more quickly when enabled"
 msgstr ""
+"Iepriekš ielādēt atpazīšanas dzinēja modeli, lai pēc iespējošanas tas sāktu "
+"darbu ātrāk"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:12
 msgid ""
@@ -337,39 +348,41 @@ msgid ""
 "a drawback though as most of the time engines' models require a lot of "
 "memory."
 msgstr ""
+"Iepriekš ielādēt atpazīšanas dzinēju, lai pēc iespējošanas tas sāktu darbu "
+"ātrāk. Tam gan ir trūkums, jo dzinēju modeļiem parasti vajag daudz atmiņas."
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:16
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:17
 msgid "Stop voice recognition if a key is pressed"
-msgstr ""
+msgstr "Apturēt balss atpazīšanu, ja nospiests taustiņš"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:21
 msgid "Display partial results"
-msgstr ""
+msgstr "Rādīt daļējos rezultātus"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:22
 msgid "Use IBus preedit functionality to display partial results"
-msgstr ""
+msgstr "Lietot IBus pirmsrediģēšanas funkciju daļējo rezultātu rādīšanai"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:26
 msgid "Format partial results"
-msgstr ""
+msgstr "Formatēt daļējos rezultātus"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:27
 msgid "Format partial results as it is done for the final ones"
-msgstr ""
+msgstr "Formatēt daļējos rezultātus tāpat kā galīgos"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:30
 msgid "Locale used"
-msgstr ""
+msgstr "Lietotā lokāle"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:32
 msgid "Sets the currently used locale"
-msgstr ""
+msgstr "Iestata pašreiz lietoto lokāli"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:35
 msgid "Paths to VOSK models"
-msgstr ""
+msgstr "Ceļi uz VOSK modeļiem"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:37
 msgid ""
@@ -377,10 +390,13 @@ msgid ""
 "It can be the name of a model if it is in default monitored paths or a "
 "custom path."
 msgstr ""
+"JSON formāta virkne, ko lieto, lai piesaistītu lokālēm to modeļus. Tas var "
+"būt modeļa nosaukums, ja tas atrodas noklusējuma uzraudzītajos ceļos, vai "
+"pielāgots ceļš."
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:40
 msgid "Paths to formatting files"
-msgstr ""
+msgstr "Ceļi uz formatēšanas failiem"
 
 #: data/org.freedesktop.ibus.engine.stt.gschema.xml.in:42
 msgid ""
@@ -388,3 +404,6 @@ msgid ""
 "file (used for automatic formatting of output). It is a custom path or "
 "nothing for defaut path."
 msgstr ""
+"JSON formāta virkne, ko lieto, lai piesaistītu lokālēm formatēšanas failu "
+"(lieto izvades automātiskai formatēšanai). Tas ir pielāgots ceļš vai nekas, "
+"ja lieto noklusējuma ceļu."
