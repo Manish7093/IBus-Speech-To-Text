@@ -72,6 +72,7 @@ class STTEngine(IBus.Engine):
         self._left_text_reset=True
 
         self._preediting=False
+        self._has_focus=False
 
         self._settings=Gio.Settings.new("org.freedesktop.ibus.engine.stt")
         self._settings.connect("changed::stop-on-keypress", self._stop_on_key_pressed_changed)
@@ -132,6 +133,9 @@ class STTEngine(IBus.Engine):
                                               sensitive=True,
                                               tooltip=_("Learn more about IBus STT")))
 
+        self._pending_flush_id = 0
+        self._pending_stop_id = 0
+
         self._engine_connected=False
         self._engine=stt_gst_factory_default().new_engine()
         if self._engine.has_model() == False:
@@ -169,6 +173,8 @@ class STTEngine(IBus.Engine):
     def do_destroy (self):
         # This method is inherited from IBusObject
         LOG_MSG.info("STTEngine destruction %s", self)
+
+        self._cancel_pending_key_tasks()
 
         self._settings.disconnect_by_func(self._stop_on_key_pressed_changed)
         self._settings=None
@@ -300,6 +306,9 @@ class STTEngine(IBus.Engine):
 
     def do_disable(self):
         LOG_MSG.info('disable %s', self)
+        self._has_focus=False
+        self._cancel_pending_key_tasks()
+        self._engine.discard_pending()
         self._engine.stop()
         self._disconnect_from_engine()
 
@@ -309,6 +318,9 @@ class STTEngine(IBus.Engine):
 
     def do_focus_in_id(self, object_path, client):
         LOG_MSG.debug("focus in id %s %s", object_path, client)
+        self._has_focus=True
+        self._engine.discard_pending()
+
         # FIXME: hopefully ibus 1.5.28 will have property needs_surrounding_text
         (ibus_text, cursor_pos, anchor_pos)=self.get_surrounding_text()
         self.register_properties(self.__prop_list)
@@ -332,6 +344,10 @@ class STTEngine(IBus.Engine):
 
     def do_focus_out_id(self, object_path):
         LOG_MSG.debug("focus out id")
+        self._has_focus=False
+        self._cancel_pending_key_tasks()
+        self._engine.discard_pending()
+
         self._reset()
 
     def do_reset(self):
@@ -435,6 +451,10 @@ class STTEngine(IBus.Engine):
             LOG_MSG.debug("current left text (after commit) (%s)", self._left_text)
 
     def _got_partial_text(self, engine, utterance):
+        if self._has_focus == False:
+            LOG_MSG.debug("no focus, dropping partial text")
+            return
+
         if (self.client_capabilities & IBus.Capabilite.PREEDIT_TEXT) == 0:
             LOG_MSG.debug("client has no Preedit capability")
             return
@@ -445,6 +465,10 @@ class STTEngine(IBus.Engine):
             self._add_preedit_text(utterance)
 
     def _got_text(self, engine, utterance):
+        if self._has_focus == False:
+            LOG_MSG.debug("no focus, dropping text (%s)", utterance)
+            return
+
         self._text_processor.utterance_process_end(utterance, self._left_text)
 
     def _reset(self):
@@ -466,15 +490,48 @@ class STTEngine(IBus.Engine):
         # if self._engine.is_running() == True:
         #     self.commit_text(IBus.Text.new_from_string(""))
 
+    def _cancel_pending_key_tasks(self):
+    # Cancel deferred keypress flush and stop callbacks
+        if self._pending_flush_id != 0:
+            GLib.source_remove(self._pending_flush_id)
+            self._pending_flush_id=0
+
+        if self._pending_stop_id != 0:
+            GLib.source_remove(self._pending_stop_id)
+            self._pending_stop_id=0
+
+    def _flush_results_cb(self):
+    # Request final results from the connected backend
+        self._pending_flush_id=0
+        if self._engine_connected == False or self._engine is None or \
+           self._engine.has_model() == False:
+            return GLib.SOURCE_REMOVE
+
+        # Results are delivered asynchronously through the "text" signal
+        self._engine.get_final_results()
+        return GLib.SOURCE_REMOVE
+
+    def _stop_engine_cb(self):
+    # Stop the connected backend and refresh the IBus state
+        self._pending_stop_id=0
+
+        if self._engine_connected == False or self._engine is None:
+            return GLib.SOURCE_REMOVE
+
+        self._engine.stop()
+        self._update_state()
+        return GLib.SOURCE_REMOVE
+
     def do_process_key_event(self, keyval, keycode, state):
+        # Defer backend work so IBus can return the key event promptly
         if (state & IBus.ModifierType.RELEASE_MASK) != 0:
-            if self._stop_on_key_pressed == True:
-                self._engine.stop()
-                self._update_state()
+            if self._stop_on_key_pressed == True and self._pending_stop_id == 0:
+                self._pending_stop_id=GLib.idle_add(self._stop_engine_cb)
         else:
             # Any keystroke should stop a potential ongoing processing
-            if self._text_processor.is_processing() == True:
-                self._engine.get_final_results()
+            if self._text_processor.is_processing() == True and \
+               self._pending_flush_id == 0:
+                self._pending_flush_id=GLib.idle_add(self._flush_results_cb)
 
             # Usually there is a "set-surrounding-text" event after a key press.
             # So get ready for the update (though we keep our current one if

@@ -82,6 +82,7 @@ class STTGstWhisper(STTGstBase):
         self._model    = None
         self._whisper  = None
         self._vad      = None
+        self._load_generation = 0
         self._set_model()
         self._ring_buffer     = np.array([], dtype=np.float32)
         self._ring_lock       = threading.Lock()
@@ -106,7 +107,6 @@ class STTGstWhisper(STTGstBase):
         self._process_thread  = None
         self._stop_processing = False
         self._draining        = False
-        self._drain_done      = threading.Event()
         self._use_partial_results = False
 
     def __del__(self):
@@ -118,6 +118,8 @@ class STTGstWhisper(STTGstBase):
 
     def destroy(self):
         self._stop_processing = True
+        self._load_generation += 1
+
         while True:
             try:
                 self._process_queue.get_nowait()
@@ -157,7 +159,7 @@ class STTGstWhisper(STTGstBase):
         """Load Whisper model using pywhispercpp"""
         if not WHISPER_AVAILABLE:
             LOG_MSG.error("pywhispercpp not available")
-            return False
+            return None
 
         try:
             LOG_MSG.info("Loading Whisper model: %s", model_path)
@@ -181,19 +183,47 @@ class STTGstWhisper(STTGstBase):
             if lang_code:
                 kwargs["language"] = lang_code
 
-            self._whisper = Model(model_path, **kwargs)
-            return True
+            return Model(model_path, **kwargs)
 
         except Exception as e:
             LOG_MSG.error("Failed to load Whisper model: %s", e)
-            self._whisper = None
+            return None
+
+    def _load_model_thread(self, model_path, restore_state, generation):
+    # Load the model in the worker and schedule completion on the main loop
+    # @model_path: Path to the selected model
+    # @restore_state: Pipeline state before loading
+    # @generation: ID of the model load request
+        whisper = self._load_whisper_model(model_path)
+        GLib.idle_add(self._model_load_done_cb,
+                      whisper, restore_state, generation)
+
+    def _model_load_done_cb(self, whisper, restore_state, generation):
+    # Apply the model load result if the request is still current
+    # @whisper: Loaded Whisper model, or None on failure
+        if self.pipeline is None or generation != self._load_generation:
+            LOG_MSG.debug("discarding stale model load")
             return False
+
+        self._whisper = whisper
+        if whisper is None:
+            return False
+
+        # Serialize the VAD reset with incoming audio
+            if self._vad is not None:
+                self._vad.reset()
+
+        self.restore_state_after_load(restore_state)
+
+        self.emit("model-changed")
+        return False
 
     def _set_model_path(self):
         if self._model is None or self._model.available() is False:
             LOG_MSG.info("model path does not exist (%s - %s)",
                         self._model.get_name() if self._model else "None",
                         self._model.get_path() if self._model else "None")
+            self._load_generation += 1
             self._whisper = None
             self.emit("model-changed")
             return
@@ -205,15 +235,11 @@ class STTGstWhisper(STTGstBase):
         if state >= Gst.State.READY:
             self.pipeline.set_state(Gst.State.READY)
 
-        success = self._load_whisper_model(new_model_path)
-
-        if state >= Gst.State.READY:
-            self.pipeline.set_state(state)
-
-        if success:
-            if self._vad is not None:
-                self._vad.reset()
-            self.emit("model-changed")
+        self._load_generation += 1
+        self._whisper = None
+        threading.Thread(target=self._load_model_thread,
+                         args=(new_model_path, state, self._load_generation),
+                         daemon=True).start()
 
     def _model_changed(self, model):
         self._set_model_path()
@@ -239,8 +265,14 @@ class STTGstWhisper(STTGstBase):
             sample = appsink.emit("pull-sample")
             return Gst.FlowReturn.OK
 
+        session = self._session_id
+
         sample = appsink.emit("pull-sample")
         if sample is None:
+            return Gst.FlowReturn.OK
+
+        if self.audio_is_stale(sample):
+            LOG_MSG.debug("dropping audio recorded before the focus changed")
             return Gst.FlowReturn.OK
 
         buf = sample.get_buffer()
@@ -253,22 +285,37 @@ class STTGstWhisper(STTGstBase):
 
         audio_float = audio_data.astype(np.float32) / 32768.0
 
-        if self._vad is not None:
-            segments = self._vad.process(audio_float)
-            for segment in segments:
-                LOG_MSG.debug("VAD segment ready: %.2f s", len(segment) / SAMPLE_RATE)
-                self._enqueue_for_transcription(segment, source='vad')
-        else:
-            self._chunk_buffer.append(audio_data)
-            self._chunk_samples += len(audio_data)
-            window_samples = int(WINDOW_SECONDS * SAMPLE_RATE)
-            if self._chunk_samples >= window_samples:
-                self._flush_chunks_to_ring()
-                self._dispatch_to_worker()
+        # Serialize audio buffering with session changes
+        with self._ring_lock:
+            if session != self._session_id:
+                LOG_MSG.debug("focus changed while this audio was read, "
+                              "dropping it")
+                return Gst.FlowReturn.OK
+
+            if self._vad is not None:
+                segments = self._vad.process(audio_float)
+                snapshot = None
+            else:
+                segments = []
+                snapshot = None
+                self._chunk_buffer.append(audio_data)
+                self._chunk_samples += len(audio_data)
+                window_samples = int(WINDOW_SECONDS * SAMPLE_RATE)
+                if self._chunk_samples >= window_samples:
+                    self._flush_chunks_to_ring_locked()
+                    snapshot = self._ring_snapshot_locked()
+
+        for segment in segments:
+            LOG_MSG.debug("VAD segment ready: %.2f s", len(segment) / SAMPLE_RATE)
+            self._enqueue_for_transcription(segment, 'vad', session)
+
+        if snapshot is not None:
+            self._enqueue_for_transcription(snapshot, 'ring', session)
 
         return Gst.FlowReturn.OK
 
-    def _flush_chunks_to_ring(self):
+    def _flush_chunks_to_ring_locked(self):
+        # Caller holds _ring_lock.
         if not self._chunk_buffer:
             return
 
@@ -277,21 +324,19 @@ class STTGstWhisper(STTGstBase):
         self._chunk_samples = 0
 
         max_samples = int(WINDOW_SECONDS * SAMPLE_RATE)
-        with self._ring_lock:
-            self._ring_buffer = np.concatenate([self._ring_buffer, new_samples])
-            if len(self._ring_buffer) > max_samples:
-                self._ring_buffer = self._ring_buffer[-max_samples:]
+        self._ring_buffer = np.concatenate([self._ring_buffer, new_samples])
+        if len(self._ring_buffer) > max_samples:
+            self._ring_buffer = self._ring_buffer[-max_samples:]
 
-    def _dispatch_to_worker(self):
+    def _ring_snapshot_locked(self):
+        # Caller holds _ring_lock.
+        if len(self._ring_buffer) < MIN_SAMPLES:
+            return None
 
-        with self._ring_lock:
-            if len(self._ring_buffer) < MIN_SAMPLES:
-                return
-            snapshot = self._ring_buffer.copy()
+        return self._ring_buffer.copy()
 
-        self._enqueue_for_transcription(snapshot, source='ring')
-
-    def _enqueue_for_transcription(self, audio_float32: np.ndarray, source: str):
+    def _enqueue_for_transcription(self, audio_float32: np.ndarray, source: str,
+                                   session: int):
         if source == 'ring':
             pending_ring = sum(
                 1 for item in list(self._process_queue.queue)
@@ -313,7 +358,7 @@ class STTGstWhisper(STTGstBase):
                 for item in temp:
                     self._process_queue.put(item)
 
-        self._process_queue.put((source, audio_float32))
+        self._process_queue.put((source, audio_float32, session))
 
         if self._process_thread is None or not self._process_thread.is_alive():
             self._process_thread = threading.Thread(target=self._process_worker, daemon=True)
@@ -323,14 +368,17 @@ class STTGstWhisper(STTGstBase):
         """Background worker to process audio"""
         while not self._stop_processing:
             try:
-                source, audio = self._process_queue.get(timeout=0.1)
+                source, audio, session = self._process_queue.get(timeout=0.1)
             except queue.Empty:
                 continue
 
             if self._whisper is None:
                 self._process_queue.task_done()
-                if self._process_queue.unfinished_tasks == 0:
-                    self._drain_done.set()
+                continue
+
+            if session != self._session_id:
+                LOG_MSG.debug("dropping audio captured for session %i", session)
+                self._process_queue.task_done()
                 continue
 
             try:
@@ -353,7 +401,7 @@ class STTGstWhisper(STTGstBase):
 
                 if text:
                     LOG_MSG.info("Whisper transcription result: '%s'", text)
-                    GLib.idle_add(self._emit_text, text)
+                    GLib.idle_add(self._emit_text, text, session)
                 else:
                     LOG_MSG.debug("No text transcribed from audio")
 
@@ -361,28 +409,51 @@ class STTGstWhisper(STTGstBase):
                 LOG_MSG.error("Whisper transcription error: %s", e, exc_info=True)
 
             self._process_queue.task_done()
-            if self._process_queue.unfinished_tasks == 0:
-                self._drain_done.set()
 
-    def _emit_text(self, text):
+    def _emit_text(self, text, session):
+        if session != self._session_id:
+            LOG_MSG.debug("dropping result of session %i (current is %i): '%s'",
+                          session, self._session_id, text)
+            return False
+
         self.emit("text", text)
         return False
 
+    def discard_pending(self):
+    # Invalidate the session and clear buffered Whisper audio
+        with self._ring_lock:
+            super().discard_pending()
+
+            self._ring_buffer = np.array([], dtype=np.float32)
+            self._chunk_buffer.clear()
+            self._chunk_samples = 0
+
+            if self._vad is not None:
+                self._vad.reset()
+
     def get_final_results(self):
+        # Let the worker finish asynchronously so IBus can handle key events
+        if self._whisper is None or self._stop_processing:
+            LOG_MSG.debug("no model loaded, nothing to flush")
+            return
+
         self._draining = True
         try:
-            if self._vad is not None:
-                remaining = self._vad.flush()
-                if remaining is not None:
-                    self._enqueue_for_transcription(remaining, source='vad')
-            else:
-                self._flush_chunks_to_ring()
-                self._dispatch_to_worker()
+            with self._ring_lock:
+                session = self._session_id
+                if self._vad is not None:
+                    remaining = self._vad.flush()
+                    snapshot = None
+                else:
+                    remaining = None
+                    self._flush_chunks_to_ring_locked()
+                    snapshot = self._ring_snapshot_locked()
 
-            self._drain_done.clear()
-            if self._process_queue.unfinished_tasks == 0:
-                return
-            self._drain_done.wait(5.0)
+            if remaining is not None:
+                self._enqueue_for_transcription(remaining, 'vad', session)
+
+            if snapshot is not None:
+                self._enqueue_for_transcription(snapshot, 'ring', session)
         finally:
             self._draining = False
 
