@@ -1,10 +1,11 @@
 import logging
 import threading
-import queue
 import numpy as np
 import re
 import os
+import time
 
+from collections import deque
 from pathlib import Path
 from gi.repository import Gst, GLib
 from sttutils import *
@@ -83,27 +84,25 @@ class STTGstWhisper(STTGstBase):
         self._whisper  = None
         self._vad      = None
         self._load_generation = 0
-        self._set_model()
         self._ring_buffer     = np.array([], dtype=np.float32)
         self._ring_lock       = threading.Lock()
         self._chunk_buffer    = []
         self._chunk_samples   = 0
+        self._set_model()
 
         if VAD_MODULE_OK:
             self._vad = STTVad(
-                speech_threshold=0.5,
-                silence_duration_ms=800, #600
-                speech_pad_ms=200,
-                min_speech_duration_ms=500, #300
+                silence_duration_ms=800,
+                min_speech_duration_ms=500,
                 max_speech_duration_s=15.0,
-                freq_thold=100.0,
             )
             LOG_MSG.info("VAD active: %s", self._vad.backend_name)
         else:
             self._vad = None
             LOG_MSG.warning("VAD not available")
 
-        self._process_queue   = queue.Queue()
+        self._queue_cond      = threading.Condition()
+        self._jobs            = deque()
         self._process_thread  = None
         self._stop_processing = False
         self._draining        = False
@@ -117,15 +116,12 @@ class STTGstWhisper(STTGstBase):
         super().__del__()
 
     def destroy(self):
-        self._stop_processing = True
-        self._load_generation += 1
+        with self._queue_cond:
+            self._stop_processing = True
+            self._jobs.clear()
+            self._queue_cond.notify_all()
 
-        while True:
-            try:
-                self._process_queue.get_nowait()
-                self._process_queue.task_done()
-            except queue.Empty:
-                break
+        self._load_generation += 1
 
         thread_alive = False
         if self._process_thread is not None:
@@ -210,6 +206,7 @@ class STTGstWhisper(STTGstBase):
             return False
 
         # Serialize the VAD reset with incoming audio
+        with self._ring_lock:
             if self._vad is not None:
                 self._vad.reset()
 
@@ -305,12 +302,14 @@ class STTGstWhisper(STTGstBase):
                     self._flush_chunks_to_ring_locked()
                     snapshot = self._ring_snapshot_locked()
 
+        now = time.monotonic()
         for segment in segments:
-            LOG_MSG.debug("VAD segment ready: %.2f s", len(segment) / SAMPLE_RATE)
-            self._enqueue_for_transcription(segment, 'vad', session)
+            self._enqueue_for_transcription(
+                segment.audio, 'vad', session,
+                now - segment.trailing_silence_samples / SAMPLE_RATE)
 
         if snapshot is not None:
-            self._enqueue_for_transcription(snapshot, 'ring', session)
+            self._enqueue_for_transcription(snapshot, 'ring', session, now)
 
         return Gst.FlowReturn.OK
 
@@ -336,54 +335,74 @@ class STTGstWhisper(STTGstBase):
         return self._ring_buffer.copy()
 
     def _enqueue_for_transcription(self, audio_float32: np.ndarray, source: str,
-                                   session: int):
-        if source == 'ring':
-            pending_ring = sum(
-                1 for item in list(self._process_queue.queue)
-                if item[0] == 'ring'
-            )
-            if pending_ring >= MAX_RING_QUEUE_DEPTH:
-                temp = []
-                dropped = False
-                while True:
-                    try:
-                        item = self._process_queue.get_nowait()
-                        if item[0] == 'ring' and not dropped:
-                            self._process_queue.task_done()
-                            dropped = True
-                        else:
-                            temp.append(item)
-                    except queue.Empty:
-                        break
-                for item in temp:
-                    self._process_queue.put(item)
+                                   session: int, speech_end: float = None):
+    # @speech_end: monotonic time the talker is estimated to have stopped
+        if speech_end is None:
+            speech_end = time.monotonic()
 
-        self._process_queue.put((source, audio_float32, session))
+        job = (source, audio_float32, session, speech_end, time.monotonic())
 
-        if self._process_thread is None or not self._process_thread.is_alive():
-            self._process_thread = threading.Thread(target=self._process_worker, daemon=True)
-            self._process_thread.start()
+        with self._queue_cond:
+            if self._stop_processing:
+                LOG_MSG.debug("backend is stopping, dropping %s job", source)
+                return
+
+            if source == 'ring':
+                # Limit pending ring snapshots and retain each VAD utterance
+                pending = [i for i, item in enumerate(self._jobs)
+                           if item[0] == 'ring']
+                if len(pending) >= MAX_RING_QUEUE_DEPTH:
+                    del self._jobs[pending[0]]
+
+            self._jobs.append(job)
+            depth = len(self._jobs)
+
+            # The appsink and main loop can both start the worker
+            if self._process_thread is None or \
+               not self._process_thread.is_alive():
+                self._process_thread = threading.Thread(
+                    target=self._process_worker, daemon=True)
+                self._process_thread.start()
+
+            self._queue_cond.notify()
+
+        if depth > 2:
+            LOG_MSG.warning("transcription backlog: %d jobs waiting, the next "
+                            "utterance will be late", depth)
+
+    def _next_job(self):
+    # Wait for queued audio
+    # Returns --> Oldest job, or None on timeout/shutdown
+        with self._queue_cond:
+            if self._stop_processing:
+                return None
+            if not self._jobs:
+                self._queue_cond.wait(0.1)
+            if not self._jobs or self._stop_processing:
+                return None
+            return self._jobs.popleft()
 
     def _process_worker(self):
         """Background worker to process audio"""
         while not self._stop_processing:
-            try:
-                source, audio, session = self._process_queue.get(timeout=0.1)
-            except queue.Empty:
+            job = self._next_job()
+            if job is None:
                 continue
 
+            source, audio, session, speech_end, queued_at = job
+
             if self._whisper is None:
-                self._process_queue.task_done()
                 continue
 
             if session != self._session_id:
                 LOG_MSG.debug("dropping audio captured for session %i", session)
-                self._process_queue.task_done()
                 continue
 
             try:
-                LOG_MSG.debug("Starting transcription of %d samples", len(audio))
+                started = time.monotonic()
                 segments = self._whisper.transcribe(audio)
+                done = time.monotonic()
+
                 text_parts = []
                 for segment in segments:
                     if not hasattr(segment, 'text'):
@@ -395,25 +414,28 @@ class STTGstWhisper(STTGstBase):
 
                     if segment_text:
                         text_parts.append(segment_text)
-                        LOG_MSG.debug("Segment text: '%s'", segment_text)
 
                 text = ' '.join(text_parts).strip()
 
+                LOG_MSG.info(
+                    "Whisper %s: %.2f s audio | endpoint %.2f s + queue "
+                    "%.2f s + inference %.2f s = %.2f s estimated speech end "
+                    "to decode completion",
+                    source, len(audio) / SAMPLE_RATE,
+                    queued_at - speech_end, started - queued_at,
+                    done - started, done - speech_end)
+                LOG_MSG.debug("Whisper %s decoded: '%s'", source, text)
+
                 if text:
-                    LOG_MSG.info("Whisper transcription result: '%s'", text)
                     GLib.idle_add(self._emit_text, text, session)
-                else:
-                    LOG_MSG.debug("No text transcribed from audio")
 
             except Exception as e:
                 LOG_MSG.error("Whisper transcription error: %s", e, exc_info=True)
 
-            self._process_queue.task_done()
-
     def _emit_text(self, text, session):
         if session != self._session_id:
-            LOG_MSG.debug("dropping result of session %i (current is %i): '%s'",
-                          session, self._session_id, text)
+            LOG_MSG.debug("dropping result of session %i (current is %i)",
+                          session, self._session_id)
             return False
 
         self.emit("text", text)
@@ -450,7 +472,10 @@ class STTGstWhisper(STTGstBase):
                     snapshot = self._ring_snapshot_locked()
 
             if remaining is not None:
-                self._enqueue_for_transcription(remaining, 'vad', session)
+                self._enqueue_for_transcription(
+                    remaining.audio, 'vad', session,
+                    time.monotonic()
+                    - remaining.trailing_silence_samples / SAMPLE_RATE)
 
             if snapshot is not None:
                 self._enqueue_for_transcription(snapshot, 'ring', session)
